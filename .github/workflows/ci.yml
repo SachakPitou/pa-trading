@@ -3,6 +3,12 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:            # manual run from the Actions tab (use it for the first, dry-run deploy)
+    inputs:
+      dry_run:
+        description: 'Dry run: show what would change on the VPS, change nothing'
+        type: boolean
+        default: true
 
 jobs:
   test:
@@ -44,10 +50,13 @@ jobs:
 
   deploy:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Auto-deploy on push to main only when the repository variable DEPLOY_ENABLED is 'true' (safety switch).
+    # A manual run of this workflow (dry run or real) always works on main.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'))
     runs-on: ubuntu-latest
     concurrency: deploy-production
     env:
+      DRY: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_USER: ${{ secrets.VPS_USER }}
       VPS_PATH: ${{ secrets.VPS_PATH }}
@@ -65,13 +74,17 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
       - name: Sync files
         run: |
-          rsync -az --delete --itemize-changes --chmod=D755,Dg+s,F644 --no-owner --no-group \
+          rsync -az --delete $DRY --itemize-changes --chmod=D755,Dg+s,F644 --no-owner --no-group \
             -e "ssh -i ~/.ssh/deploy_key -p ${VPS_PORT:-22}" \
             --exclude-from=deploy/rsync-exclude.txt ./ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
       - name: Migrate database and syntax-check on the server
         run: |
-          ssh -i ~/.ssh/deploy_key -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" \
-            "cd '$VPS_PATH' && php bin/migrate.php && find . -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null && echo server-check-ok"
+          if [ -n "$DRY" ]; then
+            REMOTE="php bin/migrate.php --status"
+          else
+            REMOTE="php bin/migrate.php && find . -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null && echo server-check-ok"
+          fi
+          ssh -i ~/.ssh/deploy_key -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" "cd '$VPS_PATH' && $REMOTE"
       - name: Check the website answers
-        if: ${{ env.SITE_URL != '' }}
+        if: ${{ env.SITE_URL != '' && env.DRY == '' }}
         run: curl -fsS -o /dev/null "$SITE_URL/login.php"
