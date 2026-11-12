@@ -11,6 +11,9 @@ switch ($a) {
   case 'status': out(cache_get('last_scan',86400*30) ?: ['error'=>'Scanner has not run yet']);
   case 'analysis': out(analysis());
   case 'news': out(['events'=>array_values(array_filter(news_events(),fn($e)=>$e['t']>time()-3600 && in_array($e['impact'],['High','Medium'],true)))]);
+  case 'calendar':
+    try { out(calendar_data($_GET['from'] ?? null, $_GET['to'] ?? null, (string)($_GET['tier'] ?? 'all'), !empty($_GET['signals']))); }
+    catch (InvalidArgumentException $e) { out(['error'=>$e->getMessage()], 422); }
   case 'signals':
     $t=tier_stats(); $rows=db()->query('SELECT * FROM signals ORDER BY id DESC LIMIT 80')->fetchAll();
     $rows=array_slice(array_values(array_filter($rows,fn($r)=>$t[$r['tier']]['visible'])),0,30);
