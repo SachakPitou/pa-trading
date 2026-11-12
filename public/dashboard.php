@@ -18,8 +18,11 @@ label{display:block;font-size:11px;color:var(--mu);margin-bottom:2px}.f{display:
 .row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bd)}.ev{padding:5px 0;border-bottom:1px solid var(--bd)}
 table{width:100%;border-collapse:collapse;font-size:12px}td{padding:5px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}
 .tag{font-size:10px;padding:1px 6px;border-radius:4px;background:var(--in)}#tv{height:460px}
+.nav{display:flex;gap:4px}.nav a{color:var(--mu);text-decoration:none;padding:5px 12px;border-radius:6px;font-weight:600}
+.nav a:hover{color:var(--tx)}.nav a.on{background:var(--in);color:var(--ac);border:1px solid var(--bd)}
 </style></head><body>
 <header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div>
+<nav class="nav"><a href="dashboard.php" class="on">Dashboard</a><a href="calendar.php">Calendar</a></nav>
 <div class="px" id="px">–</div><div id="feed" class="mu mono">connecting…</div><div id="scan" class="mono mu">Scanner: …</div>
 <span class="mu" style="margin-left:auto"><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a></span></header>
 <div class="grid">
