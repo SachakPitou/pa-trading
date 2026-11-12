@@ -1,0 +1,15 @@
+# Not copied to the VPS (and, because they are excluded, never deleted there either)
+.git/
+.github/
+.gitignore
+.deploy.env
+.env
+config.php
+data/
+tests/
+docker/
+docker-compose.yml
+deploy/
+deploy.sh
+DEVOPS.md
+*.log

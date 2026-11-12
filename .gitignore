@@ -1,0 +1,8 @@
+# secrets and machine-specific files - never commit these
+config.php
+.env
+.deploy.env
+# local data (backtest history downloaded by fetch_history.php)
+data/
+*.log
+.DS_Store

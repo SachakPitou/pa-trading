@@ -1,0 +1,94 @@
+<?php require __DIR__.'/../lib/bootstrap.php'; require_login(); $u = user(); ?>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf" content="<?= csrf() ?>"><title>XAU/USD Scalp Terminal</title>
+<style>
+:root{--bg:#0c0e12;--card:#14171d;--tx:#e8eaed;--mu:#8b93a1;--bd:#242933;--up:#2ed39b;--dn:#ff5c75;--ac:#f0b429;--in:#0c0e12}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--bd);background:var(--card)}
+.logo{font-weight:800}.logo b{color:var(--ac)}.px{font:700 26px ui-monospace,monospace}.up{color:var(--up)}.dn{color:var(--dn)}.mu{color:var(--mu)}
+.grid{display:grid;gap:12px;padding:12px 16px;grid-template-columns:2fr 1fr}@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;min-width:0}
+h2{margin:0 0 8px;font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--mu)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}.stat{background:var(--in);border-radius:8px;padding:8px}.stat b{display:block;font-size:16px}
+.sig{border:1px solid var(--bd);border-left-width:4px;border-radius:8px;padding:8px;margin-bottom:8px}.sig.BUY{border-left-color:var(--up)}.sig.SELL{border-left-color:var(--dn)}
+.r{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.mono{font:12px ui-monospace,monospace}
+button,input,select{font:inherit;color:var(--tx);background:var(--in);border:1px solid var(--bd);border-radius:6px;padding:6px 8px}button{cursor:pointer}
+button.p{background:var(--ac);color:#111;border-color:var(--ac);font-weight:600}
+label{display:block;font-size:11px;color:var(--mu);margin-bottom:2px}.f{display:grid;grid-template-columns:1fr 1fr;gap:8px}.f input,.f select{width:100%}
+.row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bd)}.ev{padding:5px 0;border-bottom:1px solid var(--bd)}
+table{width:100%;border-collapse:collapse;font-size:12px}td{padding:5px 6px;border-bottom:1px solid var(--bd);white-space:nowrap}
+.tag{font-size:10px;padding:1px 6px;border-radius:4px;background:var(--in)}#tv{height:460px}
+</style></head><body>
+<header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div>
+<div class="px" id="px">–</div><div id="feed" class="mu mono">connecting…</div><div id="scan" class="mono mu">Scanner: …</div>
+<span class="mu" style="margin-left:auto"><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a></span></header>
+<div class="grid">
+ <div class="card"><h2>Chart (TradingView)</h2><div id="tv"></div></div>
+ <div class="card"><h2>Signal intelligence</h2>
+  <div id="tiers"></div>
+  <div id="sigs" style="max-height:420px;overflow:auto"></div></div>
+ <div class="card"><h2>Market analysis</h2><div id="an" class="mu">Loading…</div></div>
+ <div class="card"><h2>Upcoming USD news (high / medium)</h2><div id="nw" class="mu" style="max-height:260px;overflow:auto">Loading…</div></div>
+ <div class="card"><h2>Risk calculator</h2>
+  <div class="f"><div><label>Balance ($)</label><input id="bal" type="number" value="5000"></div><div><label>Risk %</label><input id="rk" type="number" value="1" step=".25"></div>
+  <div><label>Entry</label><input id="en" type="number" step=".01"></div><div><label>Stop loss</label><input id="sl" type="number" step=".01"></div>
+  <div><label>Take profit</label><input id="tp" type="number" step=".01"></div><div><label>&nbsp;</label><button id="fill">Use live price</button></div></div>
+  <div class="stats" style="margin:10px 0 0;grid-template-columns:repeat(4,1fr)"><div class="stat"><span class="mu">Lots</span><b id="o1">–</b></div><div class="stat"><span class="mu">Risk</span><b id="o2">–</b></div><div class="stat"><span class="mu">Reward</span><b id="o3">–</b></div><div class="stat"><span class="mu">R:R</span><b id="o4">–</b></div></div></div>
+ <div class="card"><h2>Trade journal</h2>
+  <div class="f"><select id="js"><option>BUY</option><option>SELL</option></select><input id="jl" type="number" step=".01" value="0.10" placeholder="Lots">
+  <input id="je" type="number" step=".01" placeholder="Entry"><input id="jx" type="number" step=".01" placeholder="Exit"></div>
+  <button class="p" id="jadd" style="width:100%;margin:8px 0">Log trade</button>
+  <div style="max-height:180px;overflow:auto"><table id="jt"></table></div><div>Total P/L: <b id="jtot">$0.00</b></div></div>
+ <div class="card"><h2>Alerts</h2>
+  <label>Telegram chat ID (message your bot, then use @userinfobot to get it)</label><input id="chat" style="width:100%;margin-bottom:8px">
+  <label><input type="checkbox" id="atg"> Telegram alerts</label><label><input type="checkbox" id="aml"> Email alerts (<?= h($u['email']) ?>)</label>
+  <div style="margin-top:8px;display:flex;gap:8px"><button class="p" id="asave">Save</button><button id="atest">Send test</button><span id="amsg" class="mu"></span></div></div>
+</div>
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+new TradingView.widget({container_id:'tv',symbol:'OANDA:XAUUSD',interval:'5',theme:'dark',style:'1',locale:'en',autosize:true,timezone:'Etc/UTC',studies:['MAExp@tv-basicstudies','RSI@tv-basicstudies']});
+const $=i=>document.getElementById(i),CS=document.querySelector('meta[name=csrf]').content,f2=n=>(+n).toFixed(2);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(a,body){const o=body?{method:'POST',headers:{'X-CSRF':CS,'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
+ const r=await fetch('api.php?action='+a,o);if(r.status===401)location='login.php';return r.json();}
+let live=0,last=0;
+async function price(){try{const d=await api('price');if(d.price){const p=d.price;$('px').textContent=f2(p);$('px').className='px '+(last&&p<last?'dn':'up');last=live=p;$('feed').textContent='Twelve Data · '+new Date().toLocaleTimeString();}else $('feed').textContent=d.error||'feed error';}catch(e){$('feed').textContent='offline'}}
+let sigs=[];
+async function loadSigs(){const d=await api('signals');sigs=d.signals;
+ $('tiers').innerHTML=Object.entries(d.tiers).map(([k,t])=>`<div class="stat" style="margin-bottom:8px"><div class="r"><b>${k=='confirmed'?'Confirmed signals':'Early setups'}</b><span class="tag">${t.visible?'LIVE':'PAUSED'}</span></div>
+ <div class="mu" style="font-size:12px">Win rate ${t.win_rate==null?'– (no closed trades yet)':t.win_rate+'% (last '+t.window+' closed)'} · Net ${t.net_r>=0?'+':''}${t.net_r}R · ${t.all_closed} closed all-time</div>
+ ${t.visible?'':'<div class="dn" style="font-size:12px">Paused: recent win rate is below '+t.min_win+'%. New setups are still tracked but hidden.</div>'}</div>`).join('');
+ $('sigs').innerHTML=sigs.length?sigs.map(x=>`<div class="sig ${esc(x.side)}"><div class="r"><b class="${x.side=='BUY'?'up':'dn'}">${esc(x.side)}</b><span class="tag">${x.tier=='early'?'EARLY':'CONFIRMED'}</span><span class="tag">${esc(x.status)}</span><span class="mu">${esc(x.created_at)} · score ${x.conf}</span></div>
+ <div class="mono">E ${f2(x.entry)} · SL ${f2(x.sl)} · TP1 ${f2(x.tp1)} · TP2 ${f2(x.tp2)}</div><div class="mu" style="font-size:11px">${esc(x.reasons||'')}${x.r!==null?' · '+x.r+'R':''}</div><button data-id="${x.id}" style="margin-top:6px;font-size:12px">Load to calculator</button></div>`).join(''):'<div class="mu">No signals yet. The scanner (cron.php) creates them on each closed candle.</div>';}
+$('sigs').onclick=e=>{const s=sigs.find(x=>x.id==e.target.dataset.id);if(!s)return;$('en').value=f2(s.entry);$('sl').value=f2(s.sl);$('tp').value=f2(s.tp1);calc();};
+function calc(){const b=+$('bal').value,r=+$('rk').value,e=+$('en').value,s=+$('sl').value,t=+$('tp').value,d=Math.abs(e-s);
+ if(!b||!r||!d){['o1','o2','o3','o4'].forEach(i=>$(i).textContent='–');return}
+ const risk=b*r/100,lot=risk/(100*d),rw=t?Math.abs(t-e)*100*lot:0;
+ $('o1').textContent=lot.toFixed(2);$('o2').textContent='$'+f2(risk);$('o3').textContent=t?'$'+f2(rw):'–';$('o4').textContent=t?'1:'+(rw/risk).toFixed(2):'–';}
+['bal','rk','en','sl','tp'].forEach(i=>$(i).oninput=calc);$('fill').onclick=()=>{$('en').value=f2(live);calc()};
+async function loadJ(){const d=await api('journal');let t=0;
+ $('jt').innerHTML=d.trades.map(x=>{t+=+x.pnl;return`<tr><td class="${x.side=='BUY'?'up':'dn'}">${esc(x.side)}</td><td>${x.lots}</td><td>${f2(x.entry)}→${f2(x.exit_price)}</td><td class="${x.pnl>=0?'up':'dn'}">$${f2(x.pnl)}</td><td><button data-d="${x.id}">×</button></td></tr>`}).join('')||'<tr><td class="mu">No trades yet</td></tr>';
+ $('jtot').textContent='$'+f2(t);$('jtot').className=t>=0?'up':'dn';}
+$('jadd').onclick=async()=>{const r=await api('journal_add',{side:$('js').value,lots:$('jl').value,entry:$('je').value,exit:$('jx').value});if(!r.error){$('je').value=$('jx').value='';loadJ()}};
+$('jt').onclick=async e=>{if(e.target.dataset.d){await api('journal_del',{id:e.target.dataset.d});loadJ()}};
+async function loadMe(){const m=await api('me');$('chat').value=m.chat||'';$('atg').checked=m.tg;$('aml').checked=m.mail;}
+$('asave').onclick=async()=>{await api('settings',{chat:$('chat').value,tg:$('atg').checked,mail:$('aml').checked});$('amsg').textContent='Saved ✓'};
+$('atest').onclick=async()=>{const r=await api('test_alert',{});$('amsg').textContent=r.error||'Test sent ✓'};
+price();loadSigs();loadJ();loadMe();setInterval(price,10000);setInterval(loadSigs,30000);
+
+const cls=v=>v=='Bullish'||v=='Positive'?'up':(v=='Bearish'||v=='Negative'?'dn':'');
+async function loadAn(){try{const a=await api('analysis');if(a.error){$('an').textContent=a.error;return}
+ const R=(k,v,c)=>`<div class="row"><span class="mu">${k}</span><b class="${c||''}">${esc(v)}</b></div>`,L=a.levels;
+ $('an').innerHTML=R('Overall bias',a.bias+' ('+a.bull_factors+'/5)',cls(a.bias))+R('1H trend',a.htf,cls(a.htf))+R('5m trend (EMA 9/21/50)',a.trend5,cls(a.trend5))
+ +R('ADX '+a.adx,a.adx_state)+R('RSI 14',a.rsi)+R('MACD histogram',a.macd,cls(a.macd))+R('ATR 14',a.atr)+R('Session',a.session)
+ +R('Resistance (5m / day)',f2(L.res5)+' / '+f2(L.res_day))+R('Support (5m / day)',f2(L.sup5)+' / '+f2(L.sup_day))
+ +R('Next high-impact news',a.news?a.news.title+' · '+(a.news.mins>=0?'in '+a.news.mins+' min':Math.abs(a.news.mins)+' min ago'):'None this week',a.news&&Math.abs(a.news.mins)<=30?'dn':'');}catch(e){$('an').textContent='Analysis unavailable'}}
+async function loadNews(){try{const d=await api('news');$('nw').innerHTML=d.events.length?d.events.map(e=>`<div class="ev"><div class="r"><b class="${e.impact=='High'?'dn':''}">${esc(e.title)}</b><span class="tag">${esc(e.impact)}</span></div><div class="mu mono">${new Date(e.t*1000).toLocaleString()} · fcst ${esc(e.forecast||'–')} · prev ${esc(e.previous||'–')}</div></div>`).join(''):'No upcoming events (feed empty or unavailable).';}catch(e){}}
+async function loadSt(){try{const s=await api('status'),el=$('scan');
+ if(!s.at){el.textContent='Scanner: '+(s.error||'no data');el.className='mono dn';return}
+ const ago=Math.round((Date.now()/1000-s.at)/60),ok=ago<=10&&!s.error;
+ el.textContent='Scanner '+(ok?'OK':'STALE')+' · '+ago+' min ago'+(s.candle?' · candle '+new Date(s.candle.replace(' ','T')+'Z').toLocaleTimeString():'')+(s.adx!==undefined?' · ADX '+s.adx+' RSI '+s.rsi:'')+(s.api!==undefined?' · API '+s.api+'/800':'')+(s.skipped?' · '+s.skipped:'')+(s.error?' · '+s.error:'');
+ el.className='mono '+(ok?'up':'dn');}catch(e){}}
+loadSt();setInterval(loadSt,30000);
+loadAn();loadNews();setInterval(loadAn,300000);setInterval(loadNews,600000);
+</script></body></html>

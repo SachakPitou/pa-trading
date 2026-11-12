@@ -1,0 +1,77 @@
+name: CI/CD
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.5']
+    services:
+      db:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: dev
+          MARIADB_DATABASE: pa_trading_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_NAME: pa_trading_test
+      DB_USER: root
+      DB_PASS: dev
+      PA_TESTS_DB: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_mysql, curl
+      - name: Syntax check every PHP file
+        run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l > /dev/null
+      - name: Create config from example
+        run: cp config.example.php config.php
+      - name: Apply migrations
+        run: php bin/migrate.php
+      - name: Run tests
+        run: php tests/run.php
+
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: deploy-production
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_PATH: ${{ secrets.VPS_PATH }}
+      VPS_PORT: ${{ secrets.VPS_PORT }}
+      SITE_URL: ${{ secrets.SITE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Sync files
+        run: |
+          rsync -az --delete --itemize-changes --chmod=D755,Dg+s,F644 --no-owner --no-group \
+            -e "ssh -i ~/.ssh/deploy_key -p ${VPS_PORT:-22}" \
+            --exclude-from=deploy/rsync-exclude.txt ./ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
+      - name: Migrate database and syntax-check on the server
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${VPS_PORT:-22}" "$VPS_USER@$VPS_HOST" \
+            "cd '$VPS_PATH' && php bin/migrate.php && find . -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null && echo server-check-ok"
+      - name: Check the website answers
+        if: ${{ env.SITE_URL != '' }}
+        run: curl -fsS -o /dev/null "$SITE_URL/login.php"

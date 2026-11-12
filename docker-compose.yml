@@ -1,0 +1,29 @@
+# Local test environment:  docker compose up -d --build   ->  http://localhost:8000
+services:
+  db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: dev
+      MARIADB_DATABASE: pa_trading
+    volumes: [dbdata:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  web:
+    build: { context: ., dockerfile: docker/Dockerfile }
+    # applies pending DB migrations, then serves public/ (needs config.php: cp config.example.php config.php)
+    command: sh -c "php bin/migrate.php && exec php -S 0.0.0.0:8000 -t public"
+    ports: ["8000:8000"]
+    volumes: [".:/app"]
+    environment:
+      DB_HOST: db
+      DB_NAME: pa_trading
+      DB_USER: root
+      DB_PASS: dev
+      PA_TESTS_DB: "1"          # lets tests/run.php use THIS throw-away database
+    depends_on:
+      db: { condition: service_healthy }
+volumes:
+  dbdata:
