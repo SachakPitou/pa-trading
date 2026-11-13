@@ -106,17 +106,19 @@ function scan(): array {
     if($o['news_block'] && ($n=news_blocked(strtotime($s['t']),$o['news_mins']))){ $skip="news blackout: $n"; continue; }
     $q=db()->prepare('INSERT IGNORE INTO signals(symbol,tier,side,entry,sl,tp1,tp2,conf,reasons,candle_time) VALUES(?,?,?,?,?,?,?,?,?,?)');
     $q->execute([$sym,$tier,$s['side'],$s['entry'],$s['sl'],$s['tp1'],$s['tp2'],$s['score'],$s['why'],$s['t']]);
-    if($q->rowCount()){ $new[$tier]=$s;
+    if($q->rowCount()){ $new[$tier]=$s; $sid=(int)db()->lastInsertId();
       if($stats[$tier]['visible']){   // paused tiers are still tracked, but not announced
+        $ai=ai_run($sid,$s,$P,$i,$HP,$hi);   // AI Market Analyst review (null if off or failed; never blocks the signal)
         $lbl=$tier==='early'?'EARLY setup':'CONFIRMED';
-        alert_all("New {$s['side']} signal $sym ($lbl)",sprintf("%s %s  [%s, score %d]\nEntry %.2f\nSL %.2f\nTP1 %.2f | TP2 %.2f\nWhy: %s",$s['side'],$sym,$lbl,$s['score'],$s['entry'],$s['sl'],$s['tp1'],$s['tp2'],$s['why'])); }
+        alert_all("New {$s['side']} signal $sym ($lbl)",sprintf("%s %s  [%s, score %d]\nEntry %.2f\nSL %.2f\nTP1 %.2f | TP2 %.2f\nWhy: %s",$s['side'],$sym,$lbl,$s['score'],$s['entry'],$s['sl'],$s['tp1'],$s['tp2'],$s['why']).ai_alert_text($ai)); }
     }
   }
   if(!$new && !$skip) $skip=$P['adx'][$i]<min($o['adx_min'],(int)($o['early']['adx_min'] ?? $o['adx_min'])) ? 'waiting: ADX '.round($P['adx'][$i],1).' is below the minimum (ranging market)' : 'waiting: no qualifying setup yet';
-  $res=['new'=>$new ?: null,'skipped'=>$skip,'rsi'=>round($P['rsi'][$i],1),'adx'=>round($P['adx'][$i],1),'atr'=>round($P['atr'][$i],2)];
+  $res=['new'=>$new ?: null,'skipped'=>$skip,'rsi'=>round($P['rsi'][$i],1),'adx'=>round($P['adx'][$i],1),'atr'=>round($P['atr'][$i],2),'ai_error'=>$GLOBALS['ai_error'] ?? null];
   cache_set('last_scan',$res+['at'=>time(),'candle'=>$closed[$i]['t'],'api'=>api_used()]);   // heartbeat shown on the dashboard
   return $res;
 }
+
 /** Pipeline test: DB insert + dashboard + Telegram/email. Saved as EXP so it never blocks real signals. */
 function fire_test_signal(): array {
   $p=get_price(); if(empty($p['price'])) return ['error'=>$p['error'] ?? 'no price'];
