@@ -44,7 +44,7 @@ td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:right;white-spac
 .note{font-size:12px}#err{color:var(--dn)}
 </style></head><body>
 <header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div>
-<nav class="nav"><a href="dashboard.php">Dashboard</a><a href="calendar.php" class="on">Calendar</a></nav>
+<nav class="nav"><a href="dashboard.php">Dashboard</a><a href="performance.php">Performance</a><a href="journal.php">Journal</a><a href="calendar.php" class="on">Calendar</a></nav>
 <span class="mu" style="margin-left:auto"><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a></span></header>
 <main>
  <section class="card toolbar">
