@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS signal_checks(
+  signal_id INT PRIMARY KEY,
+  checks MEDIUMTEXT NOT NULL,
+  FOREIGN KEY(signal_id) REFERENCES signals(id) ON DELETE CASCADE) ENGINE=InnoDB;
