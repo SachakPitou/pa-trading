@@ -32,20 +32,39 @@ function evaluate(array $c,array $P,int $i,array $HP,int $hi,array $o): ?array {
   if($o['htf_filter'] && $ht===-$m) return null;                                // never trade against the 1H trend
   $r=$P['rsi'][$i]; if(($m>0&&$r>72)||($m<0&&$r<28)) return null;               // overextended
   $score=0; $why=[$trig];
+  // Explanation: record every rule and confirmation (passed or failed) so the dashboard can show WHY the signal fired
+  $chk=[]; $ck=function(string $g,string $n,bool $ok,string $d,?int $pts=null,?int $max=null) use(&$chk){ $chk[]=['g'=>$g,'name'=>$n,'ok'=>$ok,'detail'=>$d,'pts'=>$pts,'max'=>$max]; };
+  $dir=$m>0?'bullish':'bearish'; $htl=$ht===1?'bullish':($ht===-1?'bearish':'neutral'); $avgA=array_sum(array_slice($P['atr'],$i-49,50))/50;
+  $ck('gate','Trading window',true,sess_label($h).', '.gmdate('H:i',strtotime($x['t'])).' UTC on a weekday');
+  $ck('gate','Trend strength (ADX)',true,'ADX '.round($adx,1).' is at or above the minimum of '.$o['adx_min']);
+  $ck('gate','Volatility',true,'ATR is '.round($a/$avgA*100).'% of its 50-candle average (needs at least 60%)');
+  $ck('gate','Entry trigger ('.$trig.')',true,(($m>0?$bx:$sx)?'EMA9 crossed '.($m>0?'above':'below').' EMA21 on this candle':'Price pulled back to EMA21 and closed '.($m>0?'above':'below').' it with a '.$dir.' candle; EMA9/21/50 are stacked '.$dir));
+  $ck('gate','1H trend filter',true,$o['htf_filter']?'1H trend is '.$htl.', not against this '.$dir.' signal':'1H filter is switched off');
+  $ck('gate','RSI not overextended',true,'RSI '.round($r,1).' (blocked above 72 for buys, below 28 for sells)');
   if($ht===$m){ $score+=25; $why[]='1H trend'; }
-  $score+=$adx>=30?20:($adx>=25?15:10); $why[]='ADX '.round($adx);
-  if($m*($cl-$e50[$i])>0){ $score+=15; $why[]=($m>0?'above':'below').' EMA50'; }
+  $ck('score','1H trend agrees',$ht===$m,'1H trend is '.$htl,$ht===$m?25:0,25);
+  $ap=$adx>=30?20:($adx>=25?15:10); $score+=$ap; $why[]='ADX '.round($adx);
+  $ck('score','ADX strength',$adx>=25,'ADX '.round($adx,1).' (30+ gives 20 pts, 25+ gives 15, otherwise 10)',$ap,20);
+  $ep=$m*($cl-$e50[$i])>0;
+  if($ep){ $score+=15; $why[]=($m>0?'above':'below').' EMA50'; }
+  $ck('score','EMA50 alignment',$ep,'Price '.round($cl,2).' is '.($ep?'':'NOT ').($m>0?'above':'below').' EMA50 ('.round($e50[$i],2).')',$ep?15:0,15);
   $rin=$m>0?(($r>=50&&$r<=68)?15:(($r>=45&&$r<50)?8:0)):(($r<=50&&$r>=32)?15:(($r>50&&$r<=55)?8:0));
   if($rin){ $score+=$rin; $why[]='RSI '.round($r); }
-  $mh=$P['mh']; if($m*$mh[$i]>0) $score+=5; if($m*($mh[$i]-$mh[$i-1])>0){ $score+=5; $why[]='MACD momentum'; }
-  $rng=$x['h']-$x['l']; if($rng>0 && $m*($x['c']-$x['o'])>0 && abs($x['c']-$x['o'])/$rng>=0.5){ $score+=10; $why[]='strong candle'; }
+  $ck('score','RSI zone',$rin>=15,'RSI '.round($r,1).' (ideal zone '.($m>0?'50-68':'32-50').')',$rin,15);
+  $mh=$P['mh']; $mb=$m*$mh[$i]>0; $mm=$m*($mh[$i]-$mh[$i-1])>0; if($mb) $score+=5; if($mm){ $score+=5; $why[]='MACD momentum'; }
+  $ck('score','MACD direction',$mb,'MACD histogram is '.($mh[$i]>0?'positive':'negative'),$mb?5:0,5);
+  $ck('score','MACD momentum',$mm,'MACD histogram is '.($mh[$i]>$mh[$i-1]?'rising':'falling'),$mm?5:0,5);
+  $rng=$x['h']-$x['l']; $cs=$rng>0 && $m*($x['c']-$x['o'])>0 && abs($x['c']-$x['o'])/$rng>=0.5; if($cs){ $score+=10; $why[]='strong candle'; }
+  $ck('score','Candle confirmation',$cs,'Candle is '.($m*($x['c']-$x['o'])>0?$dir:'against the signal').' with a body of '.($rng>0?round(abs($x['c']-$x['o'])/$rng*100):0).'% of its range (needs a '.$dir.' candle with 50%+)',$cs?10:0,10);
   if($score<$o['min_score']) return null;
+  $ck('gate','Minimum score',true,'Score '.min(99,$score).' is at or above the required '.$o['min_score']);
   $win=array_slice($c,$i-5,6); $sw=$m>0?min(array_column($win,'l')):max(array_column($win,'h'));
   $d=max($o['sl_atr']*$a,$m>0?$cl-($sw-0.1*$a):($sw+0.1*$a)-$cl); $d=min($d,2.5*$a);
   if($d<10*$o['cost']) return null;                                                // spread must be under 10% of the stop distance
-  if(!empty($o['invert'])){ $m=-$m; $side=$m>0?'BUY':'SELL'; $why[]='inverted'; }   // research mode: trade the opposite way
+  $ck('gate','Stop vs spread cost',true,'Stop distance '.round($d,2).' is more than 10x the trading cost ('.round($o['cost'],2).')');
+  if(!empty($o['invert'])){ $m=-$m; $side=$m>0?'BUY':'SELL'; $why[]='inverted'; $ck('note','Inverted (research mode)',true,'The direction was flipped on purpose; the checks above describe the original '.$dir.' setup'); }   // research mode: trade the opposite way
   return ['side'=>$side,'entry'=>$cl,'sl'=>$cl-$m*$d,'tp1'=>$cl+$m*$d*$o['rr'],'tp2'=>$cl+$m*$d*$o['rr']*2,'d'=>$d,'rr'=>$o['rr'],
-          'score'=>min(99,$score),'why'=>implode(' · ',$why),'t'=>$x['t']];
+          'score'=>min(99,$score),'why'=>implode(' · ',$why),'t'=>$x['t'],'checks'=>$chk];
 }
 
 /** Walk forward from the signal bar: SL first if both hit in one bar (conservative). Spread cost subtracted in R. */
@@ -106,7 +125,7 @@ function scan(): array {
     if($o['news_block'] && ($n=news_blocked(strtotime($s['t']),$o['news_mins']))){ $skip="news blackout: $n"; continue; }
     $q=db()->prepare('INSERT IGNORE INTO signals(symbol,tier,side,entry,sl,tp1,tp2,conf,reasons,candle_time) VALUES(?,?,?,?,?,?,?,?,?,?)');
     $q->execute([$sym,$tier,$s['side'],$s['entry'],$s['sl'],$s['tp1'],$s['tp2'],$s['score'],$s['why'],$s['t']]);
-    if($q->rowCount()){ $new[$tier]=$s; $sid=(int)db()->lastInsertId();
+    if($q->rowCount()){ $new[$tier]=$s; $sid=(int)db()->lastInsertId(); try{ db()->prepare('REPLACE INTO signal_checks(signal_id,checks) VALUES(?,?)')->execute([$sid,json_encode($s['checks'] ?? [])]); }catch(Throwable $e){}   // explanation is optional: never block a signal
       if($stats[$tier]['visible']){   // paused tiers are still tracked, but not announced
         $ai=ai_run($sid,$s,$P,$i,$HP,$hi);   // AI Market Analyst review (null if off or failed; never blocks the signal)
         $lbl=$tier==='early'?'EARLY setup':'CONFIRMED';
