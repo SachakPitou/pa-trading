@@ -15,8 +15,9 @@ switch ($a) {
     try { out(calendar_data($_GET['from'] ?? null, $_GET['to'] ?? null, (string)($_GET['tier'] ?? 'all'), !empty($_GET['signals']))); }
     catch (InvalidArgumentException $e) { out(['error'=>$e->getMessage()], 422); }
   case 'signals':
-    $t=tier_stats(); $rows=db()->query('SELECT * FROM signals ORDER BY id DESC LIMIT 80')->fetchAll();
+    $t=tier_stats(); $rows=db()->query('SELECT s.*, a.analysis AS ai FROM signals s LEFT JOIN signal_ai a ON a.signal_id=s.id ORDER BY s.id DESC LIMIT 80')->fetchAll();
     $rows=array_slice(array_values(array_filter($rows,fn($r)=>$t[$r['tier']]['visible'])),0,30);
+    foreach($rows as &$r){ $r['ai']=$r['ai'] ? json_decode($r['ai'],true) : null; } unset($r);
     out(['signals'=>$rows,'tiers'=>$t]);
   case 'journal':
     $s = db()->prepare('SELECT * FROM journal WHERE user_id=? ORDER BY id DESC LIMIT 100'); $s->execute([$u['id']]);
