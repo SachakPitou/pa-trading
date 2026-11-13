@@ -19,9 +19,9 @@ function td(string $ep,array $q,int $ttl): array {
   $q['apikey']=cfg('td_key'); $key=substr($ep.md5(json_encode($q)),0,100);
   if(!empty($GLOBALS['web_mode'])){ $c=cache_get($key,10**9); return $c ?: ['error'=>'Waiting for the scanner to fetch data']; }   // website never spends API credits
   if($c=cache_get($key,$ttl)) return $c;
-  if(api_used()>=(int)(cfg('daily_budget') ?? 600)) return ['error'=>'Daily API budget reached; resumes at 00:00 UTC'];            // stop before the provider's hard cap
+  if(api_used()>=(int)(cfg('daily_budget') ?? 600)){ $GLOBALS['feed_error']='Daily API budget reached'; return ['error'=>'Daily API budget reached; resumes at 00:00 UTC']; }            // stop before the provider's hard cap
   $d=http_json('https://api.twelvedata.com/'.$ep.'?'.http_build_query($q));
-  if(!$d || ($d['status'] ?? '')==='error') return ['error'=>$d['message'] ?? ($GLOBALS['last_curl_error'] ?? 'Price feed unavailable')];
+  if(!$d || ($d['status'] ?? '')==='error'){ $m=$d['message'] ?? ($GLOBALS['last_curl_error'] ?? 'Price feed unavailable'); $GLOBALS['feed_error']=$m; return ['error'=>$m]; }
   cache_set($key,$d); return $d;
 }
 function get_price(): array {

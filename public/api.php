@@ -9,6 +9,7 @@ $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 switch ($a) {
   case 'price':   out(get_price());
   case 'status': out(cache_get('last_scan',86400*30) ?: ['error'=>'Scanner has not run yet']);
+  case 'health': out(health_report());
   case 'analysis': out(analysis());
   case 'news': out(['events'=>array_values(array_filter(news_events(),fn($e)=>$e['t']>time()-3600 && in_array($e['impact'],['High','Medium'],true)))]);
   case 'calendar':

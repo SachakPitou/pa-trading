@@ -42,6 +42,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}td{padding:5px 6px;bord
   <input id="je" type="number" step=".01" placeholder="Entry"><input id="jx" type="number" step=".01" placeholder="Exit"></div>
   <button class="p" id="jadd" style="width:100%;margin:8px 0">Log trade</button>
   <div style="max-height:180px;overflow:auto"><table id="jt"></table></div><div>Total P/L: <b id="jtot">$0.00</b></div></div>
+<div class="card"><h2>Scanner health</h2><div id="hl" class="mu">Loading…</div></div>
  <div class="card"><h2>Alerts</h2>
   <label>Telegram chat ID (message your bot, then use @userinfobot to get it)</label><input id="chat" style="width:100%;margin-bottom:8px">
   <label><input type="checkbox" id="atg"> Telegram alerts</label><label><input type="checkbox" id="aml"> Email alerts (<?= h($u['email']) ?>)</label>
@@ -95,6 +96,23 @@ async function loadSt(){try{const s=await api('status'),el=$('scan');
  const ago=Math.round((Date.now()/1000-s.at)/60),ok=ago<=10&&!s.error;
  el.textContent='Scanner '+(ok?'OK':'STALE')+' · '+ago+' min ago'+(s.candle?' · candle '+new Date(s.candle.replace(' ','T')+'Z').toLocaleTimeString():'')+(s.adx!==undefined?' · ADX '+s.adx+' RSI '+s.rsi:'')+(s.api!==undefined?' · API '+s.api+'/800':'')+(s.skipped?' · '+s.skipped:'')+(s.error?' · '+s.error:'');
  el.className='mono '+(ok?'up':'dn');}catch(e){}}
+/* Scanner health card */
+const ago=t=>{if(!t)return'–';const m=Math.round((Date.now()/1000-t)/60);return m<1?'just now':m<90?m+' min ago':Math.round(m/60)+' h ago'};
+const hcell=(k,v)=>`<div class="stat"><span class="mu">${k}</span><b>${v}</b></div>`;
+async function loadHealth(){try{const h=await api('health');if(h.error){$('hl').textContent=h.error;return}
+ const S=h.scanner,F=h.feed,Q=h.quota,Y=h.system,miss=F.gaps.reduce((a,g)=>a+g.missing,0);
+ $('hl').innerHTML=`<div style="margin-bottom:8px"><span class="tag ${h.status=='down'?'dn':h.status=='ok'?'up':''}" style="font-weight:700">${h.status.toUpperCase()}</span> <span class="mu">${h.expected_active?'trading window open':'outside trading window (idle is normal)'}</span></div>`
+ +(h.issues.length?`<ul style="margin:0 0 8px 16px;padding:0;font-size:12px">${h.issues.map(i=>`<li class="${i.level=='down'?'dn':''}">${esc(i.msg)}</li>`).join('')}</ul>`:'')
+ +`<div class="stats" style="margin:0;grid-template-columns:repeat(2,1fr)">`
+ +hcell('Last scan',ago(S.heartbeat))+hcell('Last successful',ago(S.last_ok))
+ +hcell('Last candle',S.last_candle?S.candle_age_min+' min old':'–')+hcell('Runs today',S.runs_today)
+ +hcell('API left today',Q.remaining+' / '+Q.budget)+hcell('Errors today',F.errors_today)
+ +hcell('Missing candles',miss||'none')+hcell('DB / cache',Y.db_ms+' ms · '+(Y.cache_age_min??'–')+' min')+`</div>`
+ +(F.last_error?`<div class="mu" style="font-size:12px;margin-top:6px">Last error ${ago(F.last_error.ts)}: ${esc(F.last_error.detail||'')}</div>`:'')
+ +`<details style="margin-top:8px"><summary class="mu" style="cursor:pointer;font-size:12px">Scanner history (last ${h.history.length})</summary><div class="mono" style="max-height:200px;overflow:auto;font-size:11px">`
+ +h.history.map(r=>`<div class="${r.outcome=='error'?'dn':r.outcome=='signal'?'up':'mu'}">${new Date(r.ts*1000).toLocaleTimeString()} · ${esc(r.outcome)} · ${r.ms}ms · API ${r.api_used}${r.detail?' · '+esc(r.detail):''}</div>`).join('')+`</div></details>`;
+}catch(e){}}
+loadHealth();setInterval(loadHealth,30000);
 loadSt();setInterval(loadSt,30000);
 loadAn();loadNews();setInterval(loadAn,300000);setInterval(loadNews,600000);
 </script></body></html>
