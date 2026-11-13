@@ -20,6 +20,10 @@ switch ($a) {
     $rows=array_slice(array_values(array_filter($rows,fn($r)=>$t[$r['tier']]['visible'])),0,30);
     foreach($rows as &$r){ $r['ai']=$r['ai'] ? json_decode($r['ai'],true) : null; $r['checks']=$r['checks'] ? json_decode($r['checks'],true) : null; } unset($r);
     out(['signals'=>$rows,'tiers'=>$t]);
+  case 'performance':
+    require_once __DIR__.'/../lib/perf.php';
+    try { out(perf_report((string)($_GET['tier'] ?? 'all'), $_GET['from'] ?? null, $_GET['to'] ?? null)); }
+    catch (InvalidArgumentException $e) { out(['error'=>$e->getMessage()], 422); }
   case 'journal':
     $s = db()->prepare('SELECT * FROM journal WHERE user_id=? ORDER BY id DESC LIMIT 100'); $s->execute([$u['id']]);
     out(['trades'=>$s->fetchAll()]);
