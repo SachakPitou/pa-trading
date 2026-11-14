@@ -43,8 +43,7 @@ td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:right;white-spac
 .bar{display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--in);vertical-align:middle;margin-right:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--up)}
 .note{font-size:12px}#err{color:var(--dn)}
 </style></head><body>
-<header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div>
-<nav class="nav"><a href="dashboard.php">Dashboard</a><a href="performance.php">Performance</a><a href="journal.php">Journal</a><a href="calendar.php" class="on">Calendar</a></nav>
+<header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div><?= nav('calendar.php') ?>
 <span class="mu" style="margin-left:auto"><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a></span></header>
 <main>
  <section class="card toolbar">
