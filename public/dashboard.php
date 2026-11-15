@@ -26,6 +26,21 @@ table{width:100%;border-collapse:collapse;font-size:12px}td{padding:5px 6px;bord
 .tag{font-size:10px;padding:1px 6px;border-radius:4px;background:var(--in)}#tv{height:460px}
 .nav{display:flex;gap:4px}.nav a{color:var(--mu);text-decoration:none;padding:5px 12px;border-radius:6px;font-weight:600}
 .nav a:hover{color:var(--tx)}.nav a.on{background:var(--in);color:var(--ac);border:1px solid var(--bd)}
+/* trade levels: Entry yellow, Stop loss red, Take profit green */
+.lvs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.lv{font:700 13px ui-monospace,monospace;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap}
+.lv b{font-size:10px;letter-spacing:.6px;margin-right:6px;opacity:.85}
+.lv.e{color:#f0b429;background:rgba(240,180,41,.12);border-color:rgba(240,180,41,.5)}
+.lv.sl{color:#ff5c75;background:rgba(255,92,117,.12);border-color:rgba(255,92,117,.5)}
+.lv.tp{color:#2ed39b;background:rgba(46,211,155,.12);border-color:rgba(46,211,155,.5)}
+.le{color:#f0b429!important}.ls{color:#ff5c75!important}.lt{color:#2ed39b!important}#en{border-color:rgba(240,180,41,.55)}#sl{border-color:rgba(255,92,117,.55)}#tp{border-color:rgba(46,211,155,.55)}
+/* signal card: big side badge, coloured status, levels with reward:risk */
+.sig{border-left-width:5px;padding:10px}.sig.BUY{background:linear-gradient(90deg,rgba(46,211,155,.08),transparent 45%)}.sig.SELL{background:linear-gradient(90deg,rgba(255,92,117,.08),transparent 45%)}
+.sh{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sgb{font-weight:800;font-size:15px;padding:2px 12px;border-radius:6px;letter-spacing:.5px}.sgb.BUY{background:var(--up);color:#06231a}.sgb.SELL{background:var(--dn);color:#2a0710}
+.tag.te{color:#f0b429;border:1px solid rgba(240,180,41,.4)}.tag.tc{color:#2ed39b;border:1px solid rgba(46,211,155,.4)}
+.tag.st.o{color:#f0b429;background:rgba(240,180,41,.15);animation:pl 1.6s infinite}.tag.st.w{color:#2ed39b;background:rgba(46,211,155,.15)}.tag.st.l{color:#ff5c75;background:rgba(255,92,117,.15)}.tag.st.x{color:var(--mu)}
+.res{font:800 14px ui-monospace,monospace}.lv i{font-style:normal;font-size:10px;margin-left:6px;opacity:.75}@keyframes pl{50%{opacity:.5}}
 </style></head><body>
 <header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div>
 <?= nav('dashboard.php') ?>
@@ -42,8 +57,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}td{padding:5px 6px;bord
 <div class="tools">
  <details class="card" id="rc"><summary>Risk calculator</summary>
   <div class="f"><div><label>Balance ($)</label><input id="bal" type="number" value="5000"></div><div><label>Risk %</label><input id="rk" type="number" value="1" step=".25"></div>
-  <div><label>Entry</label><input id="en" type="number" step=".01"></div><div><label>Stop loss</label><input id="sl" type="number" step=".01"></div>
-  <div><label>Take profit</label><input id="tp" type="number" step=".01"></div><div><label>&nbsp;</label><button id="fill">Use live price</button></div></div>
+  <div><label class="le">Entry</label><input id="en" type="number" step=".01"></div><div><label class="ls">Stop loss</label><input id="sl" type="number" step=".01"></div>
+  <div><label class="lt">Take profit</label><input id="tp" type="number" step=".01"></div><div><label>&nbsp;</label><button id="fill">Use live price</button></div></div>
   <div class="stats" style="margin:10px 0 0;grid-template-columns:repeat(4,1fr)"><div class="stat"><span class="mu">Lots</span><b id="o1">–</b></div><div class="stat"><span class="mu">Risk</span><b id="o2">–</b></div><div class="stat"><span class="mu">Reward</span><b id="o3">–</b></div><div class="stat"><span class="mu">R:R</span><b id="o4">–</b></div></div></details>
  <details class="card" id="hd"><summary>Scanner health <span id="hs"></span></summary><div id="hl" class="mu">Loading…</div></details>
  <details class="card"><summary>Alert settings</summary>
@@ -69,10 +84,13 @@ const whyBox=x=>{const k=x.checks;if(!k||!k.length)return'';
 /* AI Market Analyst review shown under each signal (collapsed by default) */
 const aiList=(t,a,c)=>a&&a.length?`<div style="margin-top:6px"><b class="${c||''}" style="font-size:12px">${t}</b><ul style="margin:2px 0 0 16px;padding:0;font-size:12px">${a.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>`:'';
 const aiBox=x=>{const a=x.ai;if(!a)return'';return`<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px"><span class="tag">AI</span> ${esc(a.summary)}</summary>${aiList('Why it may be valid',a.why_valid,'up')}${aiList('Potential weaknesses',a.weaknesses,'dn')}${aiList('Conflicting indicators',a.conflicts)}${aiList('Invalidation conditions',a.invalidation)}<div class="mu" style="font-size:10px;margin-top:6px">AI review of the setup, not financial advice.</div></details>`};
+/* signal card pieces */
+const stCls=s=>/TP/.test(s)?'w':/SL/.test(s)?'l':s==='OPEN'?'o':'x';
+const sigHead=x=>`<div class="sh"><span class="sgb ${esc(x.side)}">${x.side=='BUY'?'▲':'▼'} ${esc(x.side)}</span><span class="tag ${x.tier=='early'?'te':'tc'}">${x.tier=='early'?'⚡ EARLY':'✅ CONFIRMED'}</span><span class="tag st ${stCls(String(x.status))}">${esc(x.status)}</span><span class="tag">score ${x.conf}</span>${x.r!==null&&x.r!==undefined?`<span class="res ${x.r>0?'up':x.r<0?'dn':'mu'}">${x.r>0?'+':''}${x.r}R</span>`:''}<span class="mu" style="margin-left:auto;font-size:11px">${esc(x.created_at)}</span></div>`;
+const sigLevels=x=>{const d=Math.abs(x.entry-x.sl)||1,rr=v=>(Math.abs(v-x.entry)/d).toFixed(1)+'R';return `<div class="lvs"><span class="lv e"><b>ENTRY</b>${f2(x.entry)}</span><span class="lv sl"><b>SL</b>${f2(x.sl)}</span><span class="lv tp"><b>TP1</b>${f2(x.tp1)}<i>${rr(x.tp1)}</i></span><span class="lv tp"><b>TP2</b>${f2(x.tp2)}<i>${rr(x.tp2)}</i></span></div>`};
 async function loadSigs(){const d=await api('signals');sigs=d.signals;
  $('tiers').innerHTML='<div class="tiers">'+Object.entries(d.tiers).map(([k,t])=>`<div class="tier"><div class="r"><b>${k=='confirmed'?'Confirmed':'Early'}</b><span class="tag ${t.visible?'up':'dn'}">${t.visible?'LIVE':'PAUSED'}</span></div><div class="mu" style="font-size:11px">${t.win_rate==null?'No closed trades yet':t.win_rate+'% win · '+(t.net_r>=0?'+':'')+t.net_r+'R (last '+t.window+')'}</div>${t.visible?'':'<div class="dn" style="font-size:11px">Paused: win rate below '+t.min_win+'%</div>'}</div>`).join('')+'</div>';
- $('sigs').innerHTML=sigs.length?sigs.map(x=>`<div class="sig ${esc(x.side)}"><div class="r"><b class="${x.side=='BUY'?'up':'dn'}">${esc(x.side)}</b><span class="tag">${x.tier=='early'?'EARLY':'CONFIRMED'}</span><span class="tag">${esc(x.status)}</span><span class="mu">${esc(x.created_at)} · score ${x.conf}</span></div>
- <div class="mono">E ${f2(x.entry)} · SL ${f2(x.sl)} · TP1 ${f2(x.tp1)} · TP2 ${f2(x.tp2)}</div><div class="mu" style="font-size:11px">${esc(x.reasons||'')}${x.r!==null?' · '+x.r+'R':''}</div>${whyBox(x)}${aiBox(x)}<button data-id="${x.id}" style="margin-top:6px;font-size:12px">Load to calculator</button></div>`).join(''):'<div class="mu">No signals yet. The scanner (cron.php) creates them on each closed candle.</div>';}
+ $('sigs').innerHTML=sigs.length?sigs.map(x=>`<div class="sig ${esc(x.side)}">${sigHead(x)}${sigLevels(x)}<div class="mu" style="font-size:11px">${esc(x.reasons||'')}</div>${whyBox(x)}${aiBox(x)}<button data-id="${x.id}" style="margin-top:6px;font-size:12px">Load to calculator</button></div>`).join(''):'<div class="mu">No signals yet. The scanner (cron.php) creates them on each closed candle.</div>';}
 $('sigs').onclick=e=>{const s=sigs.find(x=>x.id==e.target.dataset.id);if(!s)return;$('en').value=f2(s.entry);$('sl').value=f2(s.sl);$('tp').value=f2(s.tp1);$('rc').open=true;calc();};
 function calc(){const b=+$('bal').value,r=+$('rk').value,e=+$('en').value,s=+$('sl').value,t=+$('tp').value,d=Math.abs(e-s);
  if(!b||!r||!d){['o1','o2','o3','o4'].forEach(i=>$(i).textContent='–');return}

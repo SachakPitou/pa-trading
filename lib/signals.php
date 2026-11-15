@@ -129,7 +129,9 @@ function scan(): array {
       if($stats[$tier]['visible']){   // paused tiers are still tracked, but not announced
         $ai=ai_run($sid,$s,$P,$i,$HP,$hi);   // AI Market Analyst review (null if off or failed; never blocks the signal)
         $lbl=$tier==='early'?'EARLY setup':'CONFIRMED';
-        alert_all("New {$s['side']} signal $sym ($lbl)",sprintf("%s %s  [%s, score %d]\nEntry %.2f\nSL %.2f\nTP1 %.2f | TP2 %.2f\nWhy: %s",$s['side'],$sym,$lbl,$s['score'],$s['entry'],$s['sl'],$s['tp1'],$s['tp2'],$s['why']).ai_alert_text($ai)); }
+        $dist=abs($s['entry']-$s['sl']) ?: 1; $rr=fn($tp)=>round(abs($tp-$s['entry'])/$dist,1);   // reward : risk of each target
+        $ic=$s['side']==='BUY'?'📈':'📉';
+        alert_all("New {$s['side']} signal $sym ($lbl)",sprintf("%s %s %s  ·  %s %s\nScore %d\n\n🟡 Entry  %.2f\n🔴 SL  %.2f\n🟢 TP1  %.2f  (%sR)\n🟢 TP2  %.2f  (%sR)\n\nWhy: %s",$ic,$s['side'],$sym,$tier==='early'?'⚡':'✅',$lbl,$s['score'],$s['entry'],$s['sl'],$s['tp1'],$rr($s['tp1']),$s['tp2'],$rr($s['tp2']),$s['why']).ai_alert_text($ai)); }
     }
   }
   if(!$new && !$skip) $skip=$P['adx'][$i]<min($o['adx_min'],(int)($o['early']['adx_min'] ?? $o['adx_min'])) ? 'waiting: ADX '.round($P['adx'][$i],1).' is below the minimum (ranging market)' : 'waiting: no qualifying setup yet';

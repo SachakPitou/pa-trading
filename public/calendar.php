@@ -42,8 +42,16 @@ table{width:100%;border-collapse:collapse;font-size:13px}th{font-size:11px;color
 td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}
 .bar{display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--in);vertical-align:middle;margin-right:6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--up)}
 .note{font-size:12px}#err{color:var(--dn)}
+/* trade levels: Entry yellow, Stop loss red, Take profit green */
+.lvs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.lv{font:700 13px ui-monospace,monospace;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap}
+.lv b{font-size:10px;letter-spacing:.6px;margin-right:6px;opacity:.85}
+.lv.e{color:#f0b429;background:rgba(240,180,41,.12);border-color:rgba(240,180,41,.5)}
+.lv.sl{color:#ff5c75;background:rgba(255,92,117,.12);border-color:rgba(255,92,117,.5)}
+.lv.tp{color:#2ed39b;background:rgba(46,211,155,.12);border-color:rgba(46,211,155,.5)}
 </style></head><body>
-<header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div><?= nav('calendar.php') ?>
+<header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div>
+<?= nav('calendar.php') ?>
 <span class="mu" style="margin-left:auto"><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a></span></header>
 <main>
  <section class="card toolbar">
@@ -156,7 +164,7 @@ function day(){
  if(!x){h+='<div class="mu" style="margin-top:8px">No signals on this day.</div>';el.className='';el.innerHTML=h;return}
  h+=`<div class="dsum"><div><span class="mu">Signals</span><b>${x.signals}</b></div><div><span class="mu">Win rate</span><b class="${wc(x.win_rate)}">${pct(x.win_rate)}</b></div><div><span class="mu">Net</span><b class="${cl(x.net_r)}">${R(x.net_r)}</b></div></div>`;
  h+=list.map(s=>`<div class="sig ${esc(s.side)}"><div class="r"><b class="${s.side=='BUY'?'up':'dn'}">${esc(s.side)}</b><span class="tag">${s.tier=='early'?'EARLY':'CONFIRMED'}</span><span class="tag">${esc(s.status)}</span><span class="mu">${esc(s.time)} · score ${s.conf}</span></div>
-  <div class="mono">E ${s.entry.toFixed(2)} · SL ${s.sl.toFixed(2)} · TP1 ${s.tp1.toFixed(2)} · TP2 ${s.tp2.toFixed(2)}</div>
+  <div class="lvs"><span class="lv e"><b>E</b>${s.entry.toFixed(2)}</span><span class="lv sl"><b>SL</b>${s.sl.toFixed(2)}</span><span class="lv tp"><b>TP1</b>${s.tp1.toFixed(2)}</span><span class="lv tp"><b>TP2</b>${s.tp2.toFixed(2)}</span></div>
   <div class="mu" style="font-size:11px">${esc(s.reasons)}${s.r!==null?' · <b class="'+cl(s.r)+'">'+R(s.r)+'</b>':''}</div></div>`).join('');
  el.className='';el.innerHTML=h;}
 
