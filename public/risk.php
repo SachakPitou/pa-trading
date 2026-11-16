@@ -25,6 +25,14 @@ label{display:block;font-size:11px;color:var(--mu);margin:8px 0 2px}.g{display:g
 .pos{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--bd);border-left-width:4px;border-radius:8px;padding:8px 10px;margin-bottom:6px}
 .pos.BUY{border-left-color:var(--up)}.pos.SELL{border-left-color:var(--dn)}
 .chk{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--tx)}.chk input{width:auto}
+.lvs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.lv{font:700 13px ui-monospace,monospace;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap}
+.lv b{font-size:10px;letter-spacing:.6px;margin-right:6px;opacity:.85}
+.lv.e{color:#f0b429;background:rgba(240,180,41,.12);border-color:rgba(240,180,41,.5)}
+.lv.sl{color:#ff5c75;background:rgba(255,92,117,.12);border-color:rgba(255,92,117,.5)}
+.lv.tp{color:#2ed39b;background:rgba(46,211,155,.12);border-color:rgba(46,211,155,.5)}
+.le{color:#f0b429!important}.ls{color:#ff5c75!important}.lt{color:#2ed39b!important}
+#c_entry,#p_entry{border-color:rgba(240,180,41,.55)}#c_sl,#p_sl{border-color:rgba(255,92,117,.55)}#c_tp{border-color:rgba(46,211,155,.55)}
 </style></head><body>
 <header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div><?= nav('risk.php') ?>
 <span class="mu" style="margin-left:auto"><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a></span></header>
@@ -35,8 +43,8 @@ label{display:block;font-size:11px;color:var(--mu);margin:8px 0 2px}.g{display:g
   <div class="card"><h2>Open positions</h2><div id="pl" class="mu"></div>
    <div class="g" style="margin-top:6px"><div><label>Direction</label><select id="p_side"><option>BUY</option><option>SELL</option></select></div>
     <div><label>Lots</label><input id="p_lots" type="number" step="0.01" value="0.10"></div>
-    <div><label>Entry</label><input id="p_entry" type="number" step="0.01"></div>
-    <div><label>Stop loss</label><input id="p_sl" type="number" step="0.01"></div></div>
+    <div><label class="le">Entry</label><input id="p_entry" type="number" step="0.01"></div>
+    <div><label class="ls">Stop loss</label><input id="p_sl" type="number" step="0.01"></div></div>
    <div style="margin-top:10px;display:flex;gap:10px;align-items:center"><button class="p" id="p_add">Add position</button><span id="p_msg" class="mu"></span></div>
    <div class="mu" style="font-size:11px;margin-top:8px">List the trades you currently have open. Remove each one when it closes. Their stop-loss risk adds up to your open risk.</div></div>
  </div>
@@ -44,9 +52,9 @@ label{display:block;font-size:11px;color:var(--mu);margin:8px 0 2px}.g{display:g
   <div class="card"><h2>Position size &amp; risk calculator</h2>
    <div class="g"><div><label>Account balance</label><input id="c_balance" type="number" step="0.01"></div>
     <div><label>Risk %</label><input id="c_risk_pct" type="number" step="0.05"></div>
-    <div><label>Entry price</label><input id="c_entry" type="number" step="0.01"></div>
-    <div><label>Stop-loss price</label><input id="c_sl" type="number" step="0.01"></div>
-    <div><label>Take profit (optional)</label><input id="c_tp" type="number" step="0.01"></div></div>
+    <div><label class="le">Entry price</label><input id="c_entry" type="number" step="0.01"></div>
+    <div><label class="ls">Stop-loss price</label><input id="c_sl" type="number" step="0.01"></div>
+    <div><label class="lt">Take profit (optional)</label><input id="c_tp" type="number" step="0.01"></div></div>
    <div class="mu" style="font-size:11px;margin-top:8px">Direction is read from your prices: stop below entry = BUY, stop above entry = SELL.</div>
    <div id="cr" style="margin-top:12px"></div></div>
   <div class="card"><h2>Account, broker &amp; limits</h2>
@@ -75,7 +83,9 @@ const NUM=['balance','risk_pct','contract_size','tick_size','tick_value','lot_st
 const COL={ok:'var(--up)',warn:'var(--ac)',breach:'var(--dn)',off:'var(--bd)'},TXT={ok:'up',warn:'ac',breach:'dn',off:'mu'};
 async function api(action,data){
  const o={};if(data){const fd=new FormData();fd.append('csrf',CS);Object.entries(data).forEach(([k,v])=>fd.append(k,v));o.method='POST';o.body=fd}
- const r=await fetch('risk_api.php?action='+action,o);if(r.status===401)location='login.php';return r.json()}
+ let r,t;try{r=await fetch('risk_api.php?action='+action,o);t=await r.text()}catch(e){return{error:'Network error: '+e.message}}
+ if(r.status===401){location='login.php';return{error:'Please log in again.'}}
+ try{return JSON.parse(t)}catch(e){return{error:'The server answered HTTP '+r.status+' with a web page instead of data. Open risk_api.php?action=state in a new tab to see the real error.'}}}
 
 function fillSettings(s){NUM.forEach(k=>$('s_'+k).value=s[k]);$('s_cooldown_on').checked=!!s.cooldown_on;$('c_balance').value=s.balance;$('c_risk_pct').value=s.risk_pct}
 function draw(d){
@@ -85,12 +95,13 @@ function draw(d){
   return `<div class="ck"><div class="t"><span>${esc(c.label)}</span><span class="${TXT[c.status]}">${c.status==='off'?'Off':v}</span></div>
   <div class="b"><i style="width:${p}%;background:${COL[c.status]}"></i></div>${c.msg?`<div class="m ${TXT[c.status]}">${esc(c.msg)}</div>`:''}</div>`}).join('');
  const cd=g.cooldown;$('cd').innerHTML=cd.on?(cd.active?`<div class="warnbox" style="border-color:var(--dn);color:var(--dn)">Cooldown active — ${cd.mins_left} min left (until ${new Date(cd.until*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}).</div>`:'<div class="mu" style="font-size:12px">Cooldown is on: not active right now.</div>'):'<div class="mu" style="font-size:12px">Cooldown is off.</div>';
- $('pl').innerHTML=d.positions.length?d.positions.map(p=>`<div class="pos ${p.side}"><span><b>${p.side}</b> ${p.lots} lots · ${p.entry} → SL ${p.sl}</span><span><span class="mu">risk</span> <b>${money(p.risk)}</b> <button data-del="${p.id}" style="margin-left:8px;font-size:12px">Remove</button></span></div>`).join(''):'<span class="mu">No open positions.</span>';
- document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{draw(await api('pos_del',{id:b.dataset.del}));calc()});
+ $('pl').innerHTML=d.positions.length?d.positions.map(p=>`<div class="pos ${p.side}"><span><b>${p.side}</b> ${p.lots} lots <span class="lv e"><b>E</b>${p.entry}</span> <span class="lv sl"><b>SL</b>${p.sl}</span></span><span><span class="mu">risk</span> <b>${money(p.risk)}</b> <button data-del="${p.id}" style="margin-left:8px;font-size:12px">Remove</button></span></div>`).join(''):'<span class="mu">No open positions.</span>';
+ document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{const d=await api('pos_del',{id:b.dataset.del});if(d.error){alert(d.error);return}draw(d);calc()});
 }
 function showCalc(r){
  const k=(a,v,s,c)=>`<div class="kpi"><span>${a}</span><b class="${c||''}">${v}</b><small>${s||'&nbsp;'}</small></div>`;
- $('cr').innerHTML=`<div class="kpis">${k('Position size',r.lots+' lots',r.side+' · exact '+r.lots_exact,r.lots>0?'ac':'dn')}${k('Loss if stopped',money(-r.risk_actual),r.risk_actual_pct+'% of balance (target '+money(r.risk_money)+')','dn')}
+ const cv=i=>$('c_'+i).value;
+ $('cr').innerHTML=`<div class="lvs"><span class="lv e"><b>ENTRY</b>${esc(cv('entry'))}</span><span class="lv sl"><b>SL</b>${esc(cv('sl'))}</span>${cv('tp')?`<span class="lv tp"><b>TP</b>${esc(cv('tp'))}</span>`:''}</div>`+`<div class="kpis">${k('Position size',r.lots+' lots',r.side+' · exact '+r.lots_exact,r.lots>0?'ac':'dn')}${k('Loss if stopped',money(-r.risk_actual),r.risk_actual_pct+'% of balance (target '+money(r.risk_money)+')','dn')}
   ${k('Stop distance',r.stop_distance,r.stop_ticks+' ticks')}${r.rr!=null?k('Potential reward',money(r.reward),'reward : risk = '+r.rr+' : 1','up'):k('Reward : risk','–','add a take profit')}
   ${k('Notional value',money(r.notional),'lots × contract × entry')}</div>`+r.warnings.map(w=>`<div class="warnbox">${esc(w)}</div>`).join('')}
 let T;async function calc(){
@@ -108,5 +119,5 @@ $('p_add').onclick=async()=>{const m=$('p_msg');m.className='mu';m.textContent='
  const d=await api('pos_add',{side:$('p_side').value,lots:$('p_lots').value,entry:$('p_entry').value,sl:$('p_sl').value});
  if(d.error){m.className='dn';m.textContent=d.error;return}
  ['p_entry','p_sl'].forEach(i=>$(i).value='');draw(d);calc()};
-(async()=>{const d=await api('state');fillSettings(d.settings);draw(d);calc()})();
+(async()=>{const d=await api('state');if(d.error){$('bn').className='banner stop';$('bn').textContent='⛔ '+d.error;return}fillSettings(d.settings);draw(d);calc()})();
 </script></body></html>
