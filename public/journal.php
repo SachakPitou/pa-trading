@@ -47,6 +47,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}td{padding:5px 6px;bord
    <div><label>Exit screenshot</label><input type="file" id="s2" accept="image/*"><div class="slot mu" tabindex="0" data-for="s2">Or click here and press Ctrl+V to paste</div></div></div>
   <div style="margin-top:12px;display:flex;gap:10px;align-items:center"><button class="p" id="save">Save trade</button><span id="msg" class="mu"></span></div>
  </details>
+ <div class="card"><h2>Download journal (CSV)</h2>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end"><div><label for="xd">Date (empty = today)</label><input type="date" id="xd" style="color-scheme:dark"></div>
+   <button class="p" data-x="day">Day</button><button class="p" data-x="week">Week (Mon–Sun)</button><button class="p" data-x="month">Month</button></div>
+  <div class="mu" style="font-size:11px;margin-top:6px">Downloads the trades of the day, week or month that contains the chosen date. Opens in Excel or Google Sheets.</div></div>
  <div class="card"><h2>Trades</h2><div id="list" class="mu">Loading…</div></div>
 </main>
 <script>
@@ -89,6 +93,7 @@ function draw(d){
  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Delete this trade and its screenshots?'))return;
   const fd=new FormData();fd.append('csrf',CS);fd.append('id',b.dataset.del);await fetch('journal_api.php?action=delete',{method:'POST',body:fd});load()});
 }
+document.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{location='journal_api.php?action=export&period='+b.dataset.x+'&date='+encodeURIComponent($('xd').value)});
 async function load(){const r=await fetch('journal_api.php?action=list');if(r.status===401)location='login.php';draw(await r.json())}
 $('save').onclick=async()=>{const m=$('msg');m.className='mu';m.textContent='Saving…';$('save').disabled=true;
  try{const fd=new FormData();fd.append('csrf',CS);
