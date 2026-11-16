@@ -1,121 +1,125 @@
-<?php require __DIR__.'/../lib/bootstrap.php'; require __DIR__.'/../lib/nav.php'; require_login(); $u = user(); ?>
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="csrf" content="<?= csrf() ?>"><title>Risk · XAU/USD Scalp Terminal</title>
-<style>
-:root{--bg:#0c0e12;--card:#14171d;--tx:#e8eaed;--mu:#8b93a1;--bd:#242933;--up:#2ed39b;--dn:#ff5c75;--ac:#f0b429;--in:#0c0e12}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,sans-serif}
-header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--bd);background:var(--card)}
-.logo{font-weight:800}.logo b{color:var(--ac)}.up{color:var(--up)}.dn{color:var(--dn)}.ac{color:var(--ac)}.mu{color:var(--mu)}.mono{font:12px ui-monospace,monospace}
-.nav{display:flex;gap:4px}.nav a{color:var(--mu);text-decoration:none;padding:5px 12px;border-radius:6px;font-weight:600}
-.nav a:hover{color:var(--tx)}.nav a.on{background:var(--in);color:var(--ac);border:1px solid var(--bd)}
-main{padding:14px 16px;display:grid;gap:14px;max-width:1100px;margin:0 auto}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;min-width:0}
-h2{margin:0 0 10px;font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--mu)}
-button,input,select{font:inherit;color:var(--tx);background:var(--in);border:1px solid var(--bd);border-radius:6px;padding:6px 10px}button{cursor:pointer}
-button.p{background:var(--ac);color:#111;border-color:var(--ac);font-weight:600}
-label{display:block;font-size:11px;color:var(--mu);margin:8px 0 2px}.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.g input,.g select{width:100%}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:820px){.two{grid-template-columns:1fr}}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.kpi{background:var(--in);border:1px solid var(--bd);border-radius:10px;padding:12px}.kpi span{font-size:11px;color:var(--mu)}.kpi b{display:block;font-size:22px;margin-top:2px}.kpi small{color:var(--mu);font-size:11px}
-.banner{border:1px solid var(--bd);border-left-width:5px;border-radius:10px;padding:12px 14px;background:var(--card);font-weight:700}
-.banner.ok{border-left-color:var(--up)}.banner.warn{border-left-color:var(--ac)}.banner.stop{border-left-color:var(--dn)}
-.ck{margin:10px 0}.ck .t{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}.ck .b{height:8px;background:var(--in);border-radius:4px;overflow:hidden}.ck .b i{display:block;height:100%}
-.ck .m{font-size:12px;margin-top:3px}
-.warnbox{border:1px solid var(--ac);border-radius:8px;padding:8px 10px;margin-top:10px;font-size:13px;color:var(--ac)}
-.pos{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--bd);border-left-width:4px;border-radius:8px;padding:8px 10px;margin-bottom:6px}
-.pos.BUY{border-left-color:var(--up)}.pos.SELL{border-left-color:var(--dn)}
-.chk{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--tx)}.chk input{width:auto}
-.lvs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
-.lv{font:700 13px ui-monospace,monospace;padding:3px 9px;border-radius:6px;border:1px solid;white-space:nowrap}
-.lv b{font-size:10px;letter-spacing:.6px;margin-right:6px;opacity:.85}
-.lv.e{color:#f0b429;background:rgba(240,180,41,.12);border-color:rgba(240,180,41,.5)}
-.lv.sl{color:#ff5c75;background:rgba(255,92,117,.12);border-color:rgba(255,92,117,.5)}
-.lv.tp{color:#2ed39b;background:rgba(46,211,155,.12);border-color:rgba(46,211,155,.5)}
-.le{color:#f0b429!important}.ls{color:#ff5c75!important}.lt{color:#2ed39b!important}
-#c_entry,#p_entry{border-color:rgba(240,180,41,.55)}#c_sl,#p_sl{border-color:rgba(255,92,117,.55)}#c_tp{border-color:rgba(46,211,155,.55)}
-</style></head><body>
-<header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div><?= nav('risk.php') ?>
-<span class="mu" style="margin-left:auto"><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a></span></header>
-<main>
- <div id="bn" class="banner mu">Loading…</div>
- <div class="two">
-  <div class="card"><h2>Trading guard (today)</h2><div id="ck"></div><div id="cd"></div></div>
-  <div class="card"><h2>Open positions</h2><div id="pl" class="mu"></div>
-   <div class="g" style="margin-top:6px"><div><label>Direction</label><select id="p_side"><option>BUY</option><option>SELL</option></select></div>
-    <div><label>Lots</label><input id="p_lots" type="number" step="0.01" value="0.10"></div>
-    <div><label class="le">Entry</label><input id="p_entry" type="number" step="0.01"></div>
-    <div><label class="ls">Stop loss</label><input id="p_sl" type="number" step="0.01"></div></div>
-   <div style="margin-top:10px;display:flex;gap:10px;align-items:center"><button class="p" id="p_add">Add position</button><span id="p_msg" class="mu"></span></div>
-   <div class="mu" style="font-size:11px;margin-top:8px">List the trades you currently have open. Remove each one when it closes. Their stop-loss risk adds up to your open risk.</div></div>
- </div>
- <div class="two">
-  <div class="card"><h2>Position size &amp; risk calculator</h2>
-   <div class="g"><div><label>Account balance</label><input id="c_balance" type="number" step="0.01"></div>
-    <div><label>Risk %</label><input id="c_risk_pct" type="number" step="0.05"></div>
-    <div><label class="le">Entry price</label><input id="c_entry" type="number" step="0.01"></div>
-    <div><label class="ls">Stop-loss price</label><input id="c_sl" type="number" step="0.01"></div>
-    <div><label class="lt">Take profit (optional)</label><input id="c_tp" type="number" step="0.01"></div></div>
-   <div class="mu" style="font-size:11px;margin-top:8px">Direction is read from your prices: stop below entry = BUY, stop above entry = SELL.</div>
-   <div id="cr" style="margin-top:12px"></div></div>
-  <div class="card"><h2>Account, broker &amp; limits</h2>
-   <div class="g"><div><label>Account balance</label><input id="s_balance" type="number" step="0.01"></div>
-    <div><label>Default risk % per trade</label><input id="s_risk_pct" type="number" step="0.05"></div></div>
-   <div class="mu" style="font-size:11px;margin:10px 0 0">Broker contract (look it up in your platform's symbol specification)</div>
-   <div class="g"><div><label>Contract size (units per lot)</label><input id="s_contract_size" type="number" step="any"></div>
-    <div><label>Tick size</label><input id="s_tick_size" type="number" step="any"></div>
-    <div><label>Tick value (per lot)</label><input id="s_tick_value" type="number" step="any"></div>
-    <div><label>Lot step</label><input id="s_lot_step" type="number" step="any"></div></div>
-   <button id="auto" style="margin-top:6px;font-size:12px">Set tick value = contract size × tick size</button>
-   <div class="mu" style="font-size:11px;margin:12px 0 0">Risk limits (0 = switched off)</div>
-   <div class="g"><div><label>Daily loss limit (% of balance)</label><input id="s_daily_loss_pct" type="number" step="0.1"></div>
-    <div><label>Max consecutive losses</label><input id="s_max_consec_losses" type="number" step="1"></div>
-    <div><label>Max open risk (% of balance)</label><input id="s_max_open_risk_pct" type="number" step="0.1"></div></div>
-   <label class="chk"><input type="checkbox" id="s_cooldown_on"> Cooldown after hitting the loss streak limit</label>
-   <div class="g"><div><label>Cooldown (minutes)</label><input id="s_cooldown_min" type="number" step="1"></div></div>
-   <div style="margin-top:12px;display:flex;gap:10px;align-items:center"><button class="p" id="save">Save settings</button><span id="msg" class="mu"></span></div></div>
- </div>
-</main>
-<script>
-const $=i=>document.getElementById(i),CS=document.querySelector('meta[name=csrf]').content;
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money=v=>(v<0?'-':'')+'$'+Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-const NUM=['balance','risk_pct','contract_size','tick_size','tick_value','lot_step','daily_loss_pct','max_consec_losses','max_open_risk_pct','cooldown_min'];
-const COL={ok:'var(--up)',warn:'var(--ac)',breach:'var(--dn)',off:'var(--bd)'},TXT={ok:'up',warn:'ac',breach:'dn',off:'mu'};
-async function api(action,data){
- const o={};if(data){const fd=new FormData();fd.append('csrf',CS);Object.entries(data).forEach(([k,v])=>fd.append(k,v));o.method='POST';o.body=fd}
- const r=await fetch('risk_api.php?action='+action,o);if(r.status===401)location='login.php';return r.json()}
+<?php
+// Stage 3 — risk management: position-size calculator + trading guard.
+// risk_calc() and risk_guard() are pure (no DB), so tests can cover them. Everything else just loads/saves.
+// Money per 1.00 of price move per 1 lot = tick_value / tick_size (that is how MT4/MT5 publish it).
+// XAU/USD default: contract 100 oz, tick size 0.01, tick value $1.00 per lot.
 
-function fillSettings(s){NUM.forEach(k=>$('s_'+k).value=s[k]);$('s_cooldown_on').checked=!!s.cooldown_on;$('c_balance').value=s.balance;$('c_risk_pct').value=s.risk_pct}
-function draw(d){
- const g=d.guard,B=$('bn'),M={ok:['✓ Within your risk limits','ok'],warn:['⚠ Approaching a risk limit','warn'],stop:['⛔ Stop trading — a risk limit has been hit','stop']}[g.status];
- B.className='banner '+M[1];B.innerHTML=M[0]+`<span class="mu" style="font-weight:400;margin-left:12px">Today: ${g.today_trades} trade${g.today_trades==1?'':'s'} · P/L <b class="${g.today_pnl>0?'up':g.today_pnl<0?'dn':''}">${money(g.today_pnl)}</b></span>`;
- $('ck').innerHTML=g.checks.map(c=>{const p=c.limit>0?Math.min(100,c.used/c.limit*100):0,v=c.unit==='$'?money(c.used)+' / '+money(c.limit):c.used+' / '+c.limit;
-  return `<div class="ck"><div class="t"><span>${esc(c.label)}</span><span class="${TXT[c.status]}">${c.status==='off'?'Off':v}</span></div>
-  <div class="b"><i style="width:${p}%;background:${COL[c.status]}"></i></div>${c.msg?`<div class="m ${TXT[c.status]}">${esc(c.msg)}</div>`:''}</div>`}).join('');
- const cd=g.cooldown;$('cd').innerHTML=cd.on?(cd.active?`<div class="warnbox" style="border-color:var(--dn);color:var(--dn)">Cooldown active — ${cd.mins_left} min left (until ${new Date(cd.until*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}).</div>`:'<div class="mu" style="font-size:12px">Cooldown is on: not active right now.</div>'):'<div class="mu" style="font-size:12px">Cooldown is off.</div>';
- $('pl').innerHTML=d.positions.length?d.positions.map(p=>`<div class="pos ${p.side}"><span><b>${p.side}</b> ${p.lots} lots <span class="lv e"><b>E</b>${p.entry}</span> <span class="lv sl"><b>SL</b>${p.sl}</span></span><span><span class="mu">risk</span> <b>${money(p.risk)}</b> <button data-del="${p.id}" style="margin-left:8px;font-size:12px">Remove</button></span></div>`).join(''):'<span class="mu">No open positions.</span>';
- document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{draw(await api('pos_del',{id:b.dataset.del}));calc()});
+function risk_defaults(): array { return [
+  'balance'=>10000.0, 'risk_pct'=>1.0,
+  'contract_size'=>100.0, 'tick_size'=>0.01, 'tick_value'=>1.0, 'lot_step'=>0.01,
+  'daily_loss_pct'=>3.0, 'max_consec_losses'=>3, 'max_open_risk_pct'=>2.0,   // a limit of 0 switches that check off
+  'cooldown_on'=>0, 'cooldown_min'=>60]; }
+
+function risk_clean(array $in): array {
+  $d = risk_defaults(); $out = [];
+  $rules = ['balance'=>[1,1e9,'Account balance'], 'risk_pct'=>[0.01,100,'Risk %'], 'contract_size'=>[0.0001,1e9,'Contract size'],
+    'tick_size'=>[0.000001,1e6,'Tick size'], 'tick_value'=>[0.000001,1e9,'Tick value'], 'lot_step'=>[0.0001,1000,'Lot step'],
+    'daily_loss_pct'=>[0,100,'Daily loss limit'], 'max_consec_losses'=>[0,100,'Max consecutive losses'],
+    'max_open_risk_pct'=>[0,100,'Max open risk'], 'cooldown_min'=>[1,1440,'Cooldown minutes']];
+  foreach ($rules as $k => [$lo, $hi, $label]) {
+    $v = $in[$k] ?? $d[$k];
+    if (!is_numeric($v) || $v < $lo || $v > $hi) throw new InvalidArgumentException("$label must be a number between $lo and ".number_format($hi, 0, '.', '').'.');
+    $out[$k] = in_array($k, ['max_consec_losses', 'cooldown_min'], true) ? (int)$v : (float)$v;
+  }
+  $out['cooldown_on'] = !empty($in['cooldown_on']) ? 1 : 0;
+  return $out;
 }
-function showCalc(r){
- const k=(a,v,s,c)=>`<div class="kpi"><span>${a}</span><b class="${c||''}">${v}</b><small>${s||'&nbsp;'}</small></div>`;
- const cv=i=>$('c_'+i).value;
- $('cr').innerHTML=`<div class="lvs"><span class="lv e"><b>ENTRY</b>${esc(cv('entry'))}</span><span class="lv sl"><b>SL</b>${esc(cv('sl'))}</span>${cv('tp')?`<span class="lv tp"><b>TP</b>${esc(cv('tp'))}</span>`:''}</div>`+`<div class="kpis">${k('Position size',r.lots+' lots',r.side+' · exact '+r.lots_exact,r.lots>0?'ac':'dn')}${k('Loss if stopped',money(-r.risk_actual),r.risk_actual_pct+'% of balance (target '+money(r.risk_money)+')','dn')}
-  ${k('Stop distance',r.stop_distance,r.stop_ticks+' ticks')}${r.rr!=null?k('Potential reward',money(r.reward),'reward : risk = '+r.rr+' : 1','up'):k('Reward : risk','–','add a take profit')}
-  ${k('Notional value',money(r.notional),'lots × contract × entry')}</div>`+r.warnings.map(w=>`<div class="warnbox">${esc(w)}</div>`).join('')}
-let T;async function calc(){
- const v=i=>$('c_'+i).value;if(!v('entry')||!v('sl')){$('cr').innerHTML='<span class="mu">Enter an entry and a stop-loss price to see the position size.</span>';return}
- const r=await api('calc',{balance:v('balance'),risk_pct:v('risk_pct'),entry:v('entry'),sl:v('sl'),tp:v('tp')});
- if(r.error)$('cr').innerHTML=`<span class="dn">${esc(r.error)}</span>`;else showCalc(r)}
-['balance','risk_pct','entry','sl','tp'].forEach(i=>$('c_'+i).addEventListener('input',()=>{clearTimeout(T);T=setTimeout(calc,300)}));
 
-$('auto').onclick=()=>{$('s_tick_value').value=+(($('s_contract_size').value||0)*($('s_tick_size').value||0)).toFixed(6)};
-$('save').onclick=async()=>{const m=$('msg');m.className='mu';m.textContent='Saving…';
- const o={cooldown_on:$('s_cooldown_on').checked?1:0};NUM.forEach(k=>o[k]=$('s_'+k).value);
- const d=await api('save',o);if(d.error){m.className='dn';m.textContent=d.error;return}
- m.className='up';m.textContent='Saved ✓';fillSettings(d.settings);draw(d);calc()};
-$('p_add').onclick=async()=>{const m=$('p_msg');m.className='mu';m.textContent='';
- const d=await api('pos_add',{side:$('p_side').value,lots:$('p_lots').value,entry:$('p_entry').value,sl:$('p_sl').value});
- if(d.error){m.className='dn';m.textContent=d.error;return}
- ['p_entry','p_sl'].forEach(i=>$(i).value='');draw(d);calc()};
-(async()=>{const d=await api('state');fillSettings(d.settings);draw(d);calc()})();
-</script></body></html>
+/** Position size, loss and reward for one planned trade. Side is read from entry vs stop (stop below entry = BUY). */
+function risk_calc(array $in, array $set, float $openRisk = 0.0): array {
+  $bal = (float)($in['balance'] ?? $set['balance']); $pct = (float)($in['risk_pct'] ?? $set['risk_pct']);
+  $e = (float)($in['entry'] ?? 0); $sl = (float)($in['sl'] ?? 0); $tp = ($in['tp'] ?? '') !== '' ? (float)$in['tp'] : null;
+  if ($bal <= 0 || $pct <= 0 || $pct > 100) throw new InvalidArgumentException('Balance must be positive and risk % between 0 and 100.');
+  if ($e <= 0 || $sl <= 0) throw new InvalidArgumentException('Enter a positive entry price and stop-loss price.');
+  if ($e == $sl) throw new InvalidArgumentException('Stop loss must be different from the entry price.');
+  $dir = $e > $sl ? 1 : -1;
+  if ($tp !== null && ($tp <= 0 || $dir*($tp-$e) <= 0)) throw new InvalidArgumentException('Take profit must be '.($dir > 0 ? 'above' : 'below').' the entry for a '.($dir > 0 ? 'BUY' : 'SELL').'.');
+  $perUnit = $set['tick_value'] / $set['tick_size'];
+  $dist = abs($e-$sl); $lossPerLot = $dist*$perUnit; $riskMoney = $bal*$pct/100; $step = $set['lot_step'];
+  $exact = $riskMoney / $lossPerLot;
+  $lots = round(floor($exact/$step + 1e-9) * $step, 6);          // always round DOWN so you never risk more than planned
+  $actual = $lots * $lossPerLot; $warn = [];
+  if ($lots <= 0) $warn[] = 'Even the smallest lot ('.$step.') would risk '.number_format($step*$lossPerLot, 2).' — more than your '.number_format($riskMoney, 2).' target. Widen your risk %, or tighten the stop.';
+  $limit = $set['max_open_risk_pct'] > 0 ? $bal*$set['max_open_risk_pct']/100 : 0;
+  if ($lots > 0 && $limit > 0 && $openRisk + $actual > $limit + 1e-9) $warn[] = 'With your open positions this trade takes open risk to '.number_format(($openRisk+$actual)/$bal*100, 2).'% (limit '.$set['max_open_risk_pct'].'%).';
+  return ['side'=>$dir > 0 ? 'BUY' : 'SELL', 'stop_distance'=>round($dist, 5), 'stop_ticks'=>round($dist/$set['tick_size'], 1),
+    'risk_money'=>round($riskMoney, 2), 'lots_exact'=>round($exact, 4), 'lots'=>$lots,
+    'risk_actual'=>round($actual, 2), 'risk_actual_pct'=>round($actual/$bal*100, 3),
+    'reward'=>$tp !== null ? round($lots*abs($tp-$e)*$perUnit, 2) : null, 'rr'=>$tp !== null ? round(abs($tp-$e)/$dist, 2) : null,
+    'notional'=>round($lots*$set['contract_size']*$e, 2), 'warnings'=>$warn];
+}
+
+/** Money at risk for one open position if its stop is hit. */
+function risk_pos_risk(array $p, array $set): float { return abs($p['entry']-$p['sl']) * $p['lots'] * ($set['tick_value']/$set['tick_size']); }
+
+/**
+ * Trading guard. $trades = journal rows newest first ['pnl','ts']; $positions = open positions; $dayStart = unix time of today's start.
+ * Daily loss and the loss streak only count trades logged today, so both reset every day.
+ * Statuses: ok | warn (80% of a limit used) | breach | off (limit is 0). Overall: ok | warn | stop.
+ */
+function risk_guard(array $trades, array $positions, array $set, int $now, int $dayStart): array {
+  $bal = (float)$set['balance']; $today = array_values(array_filter($trades, fn($t) => $t['ts'] >= $dayStart));
+  $pnl = array_sum(array_column($today, 'pnl')); $loss = max(0.0, -$pnl);
+  $streak = 0; foreach ($today as $t) { if ($t['pnl'] < 0) $streak++; else break; }
+  $open = 0.0; foreach ($positions as $p) $open += risk_pos_risk($p, $set);
+  $st = fn(float $used, float $lim, bool $hitAtLimit) => $lim <= 0 ? 'off' : (($hitAtLimit ? $used >= $lim : $used > $lim) ? 'breach' : ($used >= 0.8*$lim ? 'warn' : 'ok'));
+  $m = fn(float $v) => '$'.number_format($v, 2);
+
+  $dl = $bal*$set['daily_loss_pct']/100; $s1 = $st($loss, $dl, true);
+  $c1 = ['key'=>'daily', 'label'=>'Daily loss', 'used'=>round($loss, 2), 'limit'=>round($dl, 2), 'unit'=>'$', 'status'=>$s1,
+    'msg'=>$s1 === 'breach' ? 'Daily loss limit reached ('.$m($loss).' of '.$m($dl).'). Stop trading for today.' : ($s1 === 'warn' ? 'Close to the daily loss limit ('.$m($loss).' of '.$m($dl).').' : '')];
+
+  $mx = (int)$set['max_consec_losses']; $cdActive = false; $until = null;
+  if ($set['cooldown_on'] && $mx > 0 && $streak >= $mx) { $until = $today[0]['ts'] + (int)$set['cooldown_min']*60; $cdActive = $now < $until; }
+  $s2 = $mx <= 0 ? 'off' : ($streak >= $mx ? 'breach' : ($mx > 1 && $streak == $mx-1 ? 'warn' : 'ok'));
+  if ($s2 === 'breach' && $set['cooldown_on'] && !$cdActive) $s2 = 'warn';      // cooldown served: allowed back, but the next loss restarts it
+  $c2 = ['key'=>'streak', 'label'=>'Consecutive losses', 'used'=>$streak, 'limit'=>$mx, 'unit'=>'losses', 'status'=>$s2,
+    'msg'=>$s2 === 'breach' ? $streak.' losses in a row (limit '.$mx.'). '.($set['cooldown_on'] ? 'Cooldown active.' : 'Step away for the day.')
+      : ($s2 === 'warn' ? ($streak >= $mx ? 'Cooldown finished — one more loss starts it again.' : $streak.' losses in a row — one more hits the limit.') : '')];
+
+  $ol = $bal*$set['max_open_risk_pct']/100; $s3 = $st($open, $ol, false);
+  $c3 = ['key'=>'open', 'label'=>'Open risk', 'used'=>round($open, 2), 'limit'=>round($ol, 2), 'unit'=>'$', 'status'=>$s3,
+    'msg'=>$s3 === 'breach' ? 'Open risk '.$m($open).' is above your limit of '.$m($ol).'. Reduce or close a position.' : ($s3 === 'warn' ? 'Open risk is near the limit ('.$m($open).' of '.$m($ol).').' : '')];
+
+  $checks = [$c1, $c2, $c3]; $all = array_column($checks, 'status');
+  $overall = in_array('breach', $all, true) ? 'stop' : (in_array('warn', $all, true) ? 'warn' : 'ok');
+  return ['status'=>$overall, 'checks'=>$checks, 'today_pnl'=>round($pnl, 2), 'today_trades'=>count($today),
+    'cooldown'=>['on'=>(bool)$set['cooldown_on'], 'active'=>$cdActive, 'until'=>$cdActive ? $until : null, 'mins_left'=>$cdActive ? (int)ceil(($until-$now)/60) : 0]];
+}
+
+function risk_settings(int $uid): array {
+  $s = db()->prepare('SELECT cfg FROM risk_settings WHERE user_id=?'); $s->execute([$uid]);
+  $saved = json_decode((string)$s->fetchColumn(), true);
+  return array_merge(risk_defaults(), is_array($saved) ? $saved : []);
+}
+function risk_save(int $uid, array $in): array {
+  $c = risk_clean($in); $j = json_encode($c);
+  db()->prepare('INSERT INTO risk_settings(user_id,cfg) VALUES(?,?) ON DUPLICATE KEY UPDATE cfg=?')->execute([$uid, $j, $j]);
+  return $c;
+}
+
+function risk_positions(int $uid): array {
+  $s = db()->prepare('SELECT id,side,lots,entry,sl FROM risk_positions WHERE user_id=? ORDER BY id'); $s->execute([$uid]); $o = [];
+  foreach ($s->fetchAll() as $r) $o[] = ['id'=>(int)$r['id'], 'side'=>$r['side'], 'lots'=>(float)$r['lots'], 'entry'=>(float)$r['entry'], 'sl'=>(float)$r['sl']];
+  return $o;
+}
+function risk_pos_add(int $uid, array $in): void {
+  $side = ($in['side'] ?? '') === 'SELL' ? 'SELL' : 'BUY'; $dir = $side === 'BUY' ? 1 : -1;
+  $lots = (float)($in['lots'] ?? 0); $e = (float)($in['entry'] ?? 0); $sl = (float)($in['sl'] ?? 0);
+  if ($lots <= 0 || $e <= 0 || $sl <= 0) throw new InvalidArgumentException('Lots, entry and stop loss must be positive numbers.');
+  if ($dir*($e-$sl) <= 0) throw new InvalidArgumentException('Stop loss must be '.($dir > 0 ? 'below' : 'above').' the entry for a '.$side.'.');
+  $n = db()->prepare('SELECT COUNT(*) FROM risk_positions WHERE user_id=?'); $n->execute([$uid]);
+  if ((int)$n->fetchColumn() >= 20) throw new InvalidArgumentException('Maximum 20 open positions. Remove closed ones first.');
+  db()->prepare('INSERT INTO risk_positions(user_id,side,lots,entry,sl) VALUES(?,?,?,?,?)')->execute([$uid, $side, $lots, $e, $sl]);
+}
+function risk_pos_del(int $uid, int $id): void { db()->prepare('DELETE FROM risk_positions WHERE id=? AND user_id=?')->execute([$id, $uid]); }
+
+/** Everything the risk page needs in one call. */
+function risk_state(int $uid): array {
+  $set = risk_settings($uid); $pos = risk_positions($uid); $now = time();
+  $s = db()->prepare('SELECT pnl, UNIX_TIMESTAMP(created_at) ts FROM journal WHERE user_id=? ORDER BY id DESC LIMIT 200'); $s->execute([$uid]);
+  $trades = array_map(fn($r) => ['pnl'=>(float)$r['pnl'], 'ts'=>(int)$r['ts']], $s->fetchAll());
+  $off = (int)(strat()['tz_offset'] ?? 7)*3600; $dayStart = intdiv($now+$off, 86400)*86400 - $off;   // same "day" as the stats pages
+  foreach ($pos as &$p) $p['risk'] = round(risk_pos_risk($p, $set), 2); unset($p);
+  return ['settings'=>$set, 'positions'=>$pos, 'guard'=>risk_guard($trades, $pos, $set, $now, $dayStart)];
+}
