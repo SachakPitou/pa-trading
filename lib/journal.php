@@ -116,3 +116,51 @@ function journal_list(int $uid): array {
   }
   return ['trades'=>$out, 'summary'=>journal_summary($out), 'rules'=>$all, 'emotions'=>journal_emotions()];
 }
+
+/** Time range [start, end) of the day, week (Monday to Sunday) or month that contains $date (Y-m-d, empty = today), in the site's local time. */
+function journal_period(string $period, string $date, int $offHours): array {
+  if (!in_array($period, ['day', 'week', 'month'], true)) throw new InvalidArgumentException('Period must be day, week or month.');
+  $off = $offHours*3600;
+  if ($date === '') $loc = time() + $off;
+  else {
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $m) || !checkdate((int)$m[2], (int)$m[3], (int)$m[1])) throw new InvalidArgumentException('Date must look like 2026-11-16.');
+    $loc = gmmktime(0, 0, 0, (int)$m[2], (int)$m[3], (int)$m[1]);
+  }
+  $d0 = intdiv($loc, 86400)*86400;                                       // local midnight, as "local clock" seconds
+  if ($period === 'day') { $s = $d0; $e = $d0 + 86400; $label = gmdate('Y-m-d', $s); }
+  elseif ($period === 'week') { $s = $d0 - ((int)gmdate('N', $d0) - 1)*86400; $e = $s + 7*86400; $label = gmdate('Y-m-d', $s).'_to_'.gmdate('Y-m-d', $e - 86400); }
+  else { $y = (int)gmdate('Y', $d0); $mo = (int)gmdate('n', $d0); $s = gmmktime(0, 0, 0, $mo, 1, $y); $e = gmmktime(0, 0, 0, $mo + 1, 1, $y); $label = gmdate('Y-m', $s); }
+  return ['period'=>$period, 'start'=>$s - $off, 'end'=>$e - $off, 'label'=>$label];
+}
+
+/** CSV of the trades in a period (oldest first, with a totals row). Returns [file name, csv text]. Opens in Excel / Google Sheets. */
+function journal_csv(int $uid, string $period, string $date, int $offHours): array {
+  $p = journal_period($period, $date, $offHours);
+  $s = db()->prepare('SELECT j.side,j.lots,j.entry,j.exit_price,j.pnl,j.note,UNIX_TIMESTAMP(j.created_at) ts,
+    e.sl,e.tp,e.planned_r,e.actual_r,e.entry_reason,e.exit_reason,e.emotion,e.discipline,e.notes,e.rules
+    FROM journal j LEFT JOIN journal_extra e ON e.journal_id=j.id
+    WHERE j.user_id=? AND UNIX_TIMESTAMP(j.created_at)>=? AND UNIX_TIMESTAMP(j.created_at)<? ORDER BY j.id');
+  $s->execute([$uid, $p['start'], $p['end']]); $rules = journal_rules();
+  $safe = fn($v) => (($v = (string)$v) !== '' && preg_match('/^[=+\-@\t\r]/', $v)) ? "'".$v : $v;   // stops spreadsheet formula injection from text fields
+  $rows = [['Date', 'Time', 'Side', 'Lots', 'Entry', 'Exit', 'Planned SL', 'Planned TP', 'Planned R', 'Actual R', 'P/L ($)', 'Emotion', 'Discipline (1-5)', 'Rules followed %', 'Rules broken', 'Entry reason', 'Exit reason', 'Notes']];
+  $n = 0; $pnl = 0.0; $rs = [];
+  foreach ($s->fetchAll() as $r) {
+    $rl = $r['rules'] !== null ? (json_decode($r['rules'], true) ?: []) : null; $local = (int)$r['ts'] + $offHours*3600;
+    $broken = []; if ($rl !== null) foreach ($rules as $k => $label) if (empty($rl[$k])) $broken[] = $label;
+    $adh = $rl !== null ? (int)round(count(array_filter($rl)) / count($rules) * 100) : '';
+    $rows[] = [gmdate('Y-m-d', $local), gmdate('H:i', $local), $r['side'], (float)$r['lots'], (float)$r['entry'], (float)$r['exit_price'], $r['sl'] ?? '', $r['tp'] ?? '', $r['planned_r'] ?? '', $r['actual_r'] ?? '',
+      round((float)$r['pnl'], 2), $r['emotion'] ?? '', $r['discipline'] ?? '', $adh, $safe(implode('; ', $broken)), $safe($r['entry_reason'] ?? ''), $safe($r['exit_reason'] ?? ''), $safe($r['notes'] ?? ($r['entry_reason'] === null ? $r['note'] : ''))];
+    $n++; $pnl += (float)$r['pnl']; if ($r['actual_r'] !== null) $rs[] = (float)$r['actual_r'];
+  }
+  $rows[] = []; $rows[] = ['TOTAL', $n.' trades', '', '', '', '', '', '', '', $rs ? round(array_sum($rs)/count($rs), 2).' avg' : '', round($pnl, 2)];
+  $fh = fopen('php://temp', 'r+'); foreach ($rows as $row) fputcsv($fh, $row, ',', '"', '\\'); rewind($fh);
+  $csv = "\xEF\xBB\xBF".stream_get_contents($fh); fclose($fh);                // BOM so Excel reads UTF-8 correctly
+  return ['journal_'.$p['period'].'_'.$p['label'].'.csv', $csv];
+}
+
+function journal_export(int $uid, string $period, string $date, int $offHours): void {
+  ini_set('display_errors', '0'); [$name, $csv] = journal_csv($uid, $period, $date, $offHours);
+  header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename="'.$name.'"');
+  header('X-Content-Type-Options: nosniff'); header('Cache-Control: private, no-store');
+  echo $csv; exit;
+}

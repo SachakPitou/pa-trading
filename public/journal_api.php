@@ -6,6 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') check_csrf();
 try {
   switch ($a) {
     case 'list':   out(journal_list((int)$u['id']));
+    case 'export': journal_export((int)$u['id'], (string)($_GET['period'] ?? 'day'), (string)($_GET['date'] ?? ''), (int)(strat()['tz_offset'] ?? 7));
     case 'shot':   journal_serve_shot((int)$u['id'], (int)($_GET['id'] ?? 0), (string)($_GET['k'] ?? ''));
     case 'add':    out(['ok'=>true, 'id'=>journal_add((int)$u['id'], $_POST)]);
     case 'delete': journal_delete((int)$u['id'], (int)($_POST['id'] ?? 0)); out(['ok'=>true]);
