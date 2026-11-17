@@ -26,7 +26,10 @@ function td(string $ep,array $q,int $ttl): array {
 }
 function get_price(): array {
   $d=td('price',['symbol'=>cfg('symbol')],10);
-  return isset($d['price']) ? ['price'=>(float)$d['price']] : $d;
+  if(isset($d['price'])) return ['price'=>(float)$d['price']];
+  $c=get_candles(500);                                  // fallback: close of the latest candle the scanner cached
+  if($c) return ['price'=>end($c)['c']];
+  return $d;
 }
 function get_candles(int $n=150,?string $interval=null,int $ttl=45): array {
   $d=td('time_series',['symbol'=>cfg('symbol'),'interval'=>$interval ?? cfg('interval'),'outputsize'=>$n,'timezone'=>'UTC'],$ttl);
