@@ -1,4 +1,4 @@
-<?php require __DIR__.'/../lib/bootstrap.php'; require __DIR__.'/../lib/nav.php'; require_login(); $u = user(); ?>
+<?php require __DIR__.'/../lib/bootstrap.php'; require __DIR__.'/../lib/nav.php'; $u = user(); $guest = !$u; if ($guest) { header('Location: home.php'); exit; } ?>
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="csrf" content="<?= csrf() ?>"><title>XAU/USD Scalp Terminal</title>
 <style>
@@ -8,6 +8,7 @@ header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;padding:12px
 .logo{font-weight:800}.logo b{color:var(--ac)}.px{font:700 26px ui-monospace,monospace}.up{color:var(--up)}.dn{color:var(--dn)}.mu{color:var(--mu)}
 .main{display:grid;gap:12px;padding:12px 16px;grid-template-columns:minmax(0,2fr) minmax(0,1fr)}@media(max-width:900px){.main{grid-template-columns:1fr}}
 .wrap{padding:0 16px 12px}.tools{display:grid;gap:12px;padding:0 16px 16px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));align-items:start}
+.lockmsg{padding:14px;text-align:center;color:var(--mu)}.lockmsg a{color:var(--ac)}details.locked>*:not(summary):not(.lockmsg){display:none}
 .chip{font-size:12px;padding:3px 10px;border-radius:12px;background:var(--in);border:1px solid var(--bd);cursor:pointer}
 .hd{display:flex;justify-content:space-between;align-items:center}.hd a{color:var(--ac);text-decoration:none;font-weight:600;letter-spacing:0;text-transform:none}
 .tabs{display:flex;gap:6px;margin-bottom:10px}.tabs button.on{background:var(--ac);color:#111;border-color:var(--ac);font-weight:600}
@@ -46,7 +47,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}td{padding:5px 6px;bord
 <header><div class="logo">XAU<b>/</b>USD <span class="mu">SCALP TERMINAL</span></div>
 <?= nav('dashboard.php') ?>
 <div class="px" id="px">–</div><div id="feed" class="mu mono">connecting…</div><div id="scan" class="chip mono mu" title="Click for scanner health">Scanner …</div>
-<span class="mu" style="margin-left:auto"><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a></span></header>
+<span class="mu" style="margin-left:auto"><?php if ($guest): ?>Guest · <a href="login.php" style="color:var(--ac)">Sign in</a> · <a href="login.php?register=1" style="color:var(--ac)">Create account</a><?php else: ?><?= h($u['email']) ?> · <a href="logout.php" style="color:var(--ac)">Logout</a><?php endif; ?></span></header>
 <div class="main">
  <div class="card"><h2>Chart (TradingView)</h2><div id="tv"></div></div>
  <div class="card"><h2 class="hd"><span>Signals</span><a href="performance.php">Performance →</a></h2>
@@ -62,18 +63,19 @@ table{width:100%;border-collapse:collapse;font-size:12px}td{padding:5px 6px;bord
   <div><label class="lt">Take profit</label><input id="tp" type="number" step=".01"></div><div><label>&nbsp;</label><button id="fill">Use live price</button></div></div>
   <div class="stats" style="margin:10px 0 0;grid-template-columns:repeat(4,1fr)"><div class="stat"><span class="mu">Lots</span><b id="o1">–</b></div><div class="stat"><span class="mu">Risk</span><b id="o2">–</b></div><div class="stat"><span class="mu">Reward</span><b id="o3">–</b></div><div class="stat"><span class="mu">R:R</span><b id="o4">–</b></div></div></details>
  <details class="card" id="hd"><summary>Scanner health <span id="hs"></span></summary><div id="hl" class="mu">Loading…</div></details>
- <details class="card"><summary>Alert settings</summary>
+ <details class="card" id="al"><summary>Alert settings</summary>
   <label>Telegram chat ID (message your bot, then use @userinfobot to get it)</label><input id="chat" style="width:100%;margin-bottom:8px">
-  <label><input type="checkbox" id="atg"> Telegram alerts</label><label><input type="checkbox" id="aml"> Email alerts (<?= h($u['email']) ?>)</label>
+  <label><input type="checkbox" id="atg"> Telegram alerts</label><label><input type="checkbox" id="aml"> Email alerts (<?= h($u['email'] ?? '') ?>)</label>
   <div style="margin-top:8px;display:flex;gap:8px"><button class="p" id="asave">Save</button><button id="atest">Send test</button><span id="amsg" class="mu"></span></div></details>
 </div>
 <script src="https://s3.tradingview.com/tv.js"></script>
 <script>
+const GUEST=<?= $guest ? 'true' : 'false' ?>;
 new TradingView.widget({container_id:'tv',symbol:'OANDA:XAUUSD',interval:'5',theme:'dark',style:'1',locale:'en',autosize:true,timezone:'Etc/UTC',studies:['MAExp@tv-basicstudies','RSI@tv-basicstudies']});
 const $=i=>document.getElementById(i),CS=document.querySelector('meta[name=csrf]').content,f2=n=>(+n).toFixed(2);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(a,body){const o=body?{method:'POST',headers:{'X-CSRF':CS,'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
- const r=await fetch('api.php?action='+a,o);if(r.status===401)location='login.php';return r.json();}
+ const r=await fetch('api.php?action='+a,o);if(r.status===401){if(GUEST)return{locked:true};location='login.php';}if(r.status===402)location='billing.php';return r.json();}
 let live=0,last=0;
 async function price(){try{const d=await api('price');if(d.price){const p=d.price;$('px').textContent=f2(p);$('px').className='px '+(last&&p<last?'dn':'up');last=live=p;$('feed').textContent='Twelve Data · '+new Date().toLocaleTimeString();}else $('feed').textContent=d.error||'feed error';}catch(e){$('feed').textContent='offline'}}
 let sigs=[];
@@ -101,7 +103,7 @@ function calc(){const b=+$('bal').value,r=+$('rk').value,e=+$('en').value,s=+$('
 async function loadMe(){const m=await api('me');$('chat').value=m.chat||'';$('atg').checked=m.tg;$('aml').checked=m.mail;}
 $('asave').onclick=async()=>{await api('settings',{chat:$('chat').value,tg:$('atg').checked,mail:$('aml').checked});$('amsg').textContent='Saved ✓'};
 $('atest').onclick=async()=>{const r=await api('test_alert',{});$('amsg').textContent=r.error||'Test sent ✓'};
-price();loadSigs();loadMe();setInterval(price,10000);setInterval(loadSigs,30000);
+price();setInterval(price,10000);if(!GUEST){loadSigs();loadMe();setInterval(loadSigs,30000);}
 
 const cls=v=>v=='Bullish'||v=='Positive'?'up':(v=='Bearish'||v=='Negative'?'dn':'');
 async function loadAn(){try{const a=await api('analysis');if(a.error){$('an').textContent=a.error;return}
@@ -136,7 +138,14 @@ async function loadHealth(){try{const h=await api('health');if(h.error){$('hl').
  +`<details style="margin-top:8px"><summary class="mu" style="cursor:pointer;font-size:12px">Scanner history (last ${h.history.length})</summary><div class="mono" style="max-height:200px;overflow:auto;font-size:11px">`
  +h.history.map(r=>`<div class="${r.outcome=='error'?'dn':r.outcome=='signal'?'up':'mu'}">${new Date(r.ts*1000).toLocaleTimeString()} · ${esc(r.outcome)} · ${r.ms}ms · API ${r.api_used}${r.detail?' · '+esc(r.detail):''}</div>`).join('')+`</div></details>`;
 }catch(e){}}
-loadHealth();setInterval(loadHealth,30000);
-loadSt();setInterval(loadSt,30000);
-loadAn();loadNews();setInterval(loadAn,300000);setInterval(loadNews,600000);
+if(GUEST){
+ const msg=t=>`<div class="lockmsg">🔒 <b>${t}</b> is for members.<br><a href="login.php">Sign in</a> or <a href="login.php?register=1">create an account</a></div>`;
+ $('sigs').innerHTML=msg('Signals');$('an').innerHTML=msg('AI market analysis');
+ [['rc','Risk calculator'],['hd','Scanner health'],['al','Alert settings']].forEach(([i,t])=>{const d=$(i);d.classList.add('locked');d.insertAdjacentHTML('beforeend',msg(t));});
+ loadNews();setInterval(loadNews,600000);
+}else{
+ loadHealth();setInterval(loadHealth,30000);
+ loadSt();setInterval(loadSt,30000);
+ loadAn();loadNews();setInterval(loadAn,300000);setInterval(loadNews,600000);
+}
 </script></body></html>

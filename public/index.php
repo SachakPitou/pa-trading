@@ -1,1 +1,1 @@
-<?php header('Location: dashboard.php');
+<?php require __DIR__.'/../lib/bootstrap.php'; header('Location: '.(user() ? 'dashboard.php' : 'home.php'));
