@@ -5,8 +5,9 @@ $reg = isset($_GET['register']) && cfg('allow_register'); $err = ''; $ok = ''; $
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   check_csrf(); $ip = $_SERVER['REMOTE_ADDR'] ?? ''; $now = time();
   db()->prepare('DELETE FROM login_attempts WHERE at<?')->execute([$now-900]);
+  db()->prepare('DELETE FROM login_fail WHERE at<?')->execute([$now-900]);
   $c = db()->prepare('SELECT COUNT(*) FROM login_attempts WHERE ip=?'); $c->execute([$ip]);
-  $email = strtolower(trim($_POST['email'] ?? '')); $pw = $_POST['password'] ?? '';
+  $email = substr(strtolower(trim($_POST['email'] ?? '')), 0, 190); $pw = (string)($_POST['password'] ?? '');
   $hit = fn() => db()->prepare('INSERT INTO login_attempts(ip,at) VALUES(?,?)')->execute([$ip, $now]);
   if ((int)$c->fetchColumn() >= 5) $err = 'Too many attempts. Try again in 15 minutes.';
   elseif (!empty($_POST['resend'])) {
@@ -25,11 +26,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $ok = 'Almost done! We sent a confirmation link to your email. Click it, then sign in.'; $reg = false;
     } catch (PDOException $e) { $err = 'That email is already registered.'; }
   } else {
-    $s = db()->prepare('SELECT * FROM users WHERE email=?'); $s->execute([$email]); $u = $s->fetch();
-    if ($u && password_verify($pw, $u['pass_hash'])) {
-      if (!empty($u['disabled_at'])) { $err = 'This account is disabled. Please contact support.'; } elseif (!$u['email_verified_at']) { $err = 'Please confirm your email first.'; $resendFor = $email; }
-      else { session_regenerate_id(true); $_SESSION['uid'] = (int)$u['id']; $_SESSION['sv'] = (int)($u['sess_ver'] ?? 0); $_SESSION['born'] = time(); header('Location: '.(gate_redirect($u) ?? 'dashboard.php')); exit; }
-    } else { $hit(); $err = 'Wrong email or password.'; }
+    $fc = db()->prepare('SELECT COUNT(*) FROM login_fail WHERE email=? AND at>?'); $fc->execute([$email, $now-900]);
+    if ((int)$fc->fetchColumn() >= 8) {
+      $err = 'Too many failed attempts for this account. Try again in 15 minutes, or use "Forgot password".';
+    } else {
+      $s = db()->prepare('SELECT * FROM users WHERE email=?'); $s->execute([$email]); $u = $s->fetch();
+      $good = $u ? password_verify($pw, $u['pass_hash'])
+                 : password_verify($pw, '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi') && false; // same work for unknown emails
+      if ($good) {
+        db()->prepare('DELETE FROM login_fail WHERE email=?')->execute([$email]);
+        if (!empty($u['disabled_at'])) { $err = 'This account is disabled. Please contact support.'; }
+        elseif (!$u['email_verified_at']) { $err = 'Please confirm your email first.'; $resendFor = $email; }
+        else {
+          session_regenerate_id(true);
+          $_SESSION['uid'] = (int)$u['id']; $_SESSION['sv'] = (int)($u['sess_ver'] ?? 0); $_SESSION['born'] = time();
+          header('Location: '.(gate_redirect($u) ?? 'dashboard.php')); exit;
+        }
+      } else {
+        $hit(); db()->prepare('INSERT INTO login_fail(email,at) VALUES(?,?)')->execute([$email, $now]);
+        $err = 'Wrong email or password.';
+      }
+    }
   }
 }
 ?><!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

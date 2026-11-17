@@ -1,0 +1,3 @@
+CREATE TABLE IF NOT EXISTS login_fail(
+  email VARCHAR(190) NOT NULL, at INT NOT NULL, INDEX(email,at)
+) ENGINE=InnoDB;
