@@ -1,0 +1,25 @@
+/* Shared app styling: navigation, user menu, mobile tab bar, card polish */
+header{position:sticky;top:0;z-index:40;gap:12px 20px;align-items:center}
+.card{border-radius:12px}
+.an{display:flex;gap:4px;margin:0 auto 0 8px}
+.an a{display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:8px;color:#8b93a1;font-weight:600;font-size:14px;text-decoration:none;white-space:nowrap}
+.an a:hover{background:rgba(255,255,255,.05);color:#e8eaed}
+.an a.on{background:rgba(240,180,41,.13);color:#f0b429}
+.an i{font-style:normal;font-size:15px}.an em{font-style:normal;font-size:11px;opacity:.8}
+.pxbox{display:flex;align-items:baseline;gap:10px}
+.um{position:relative}.um summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px}
+.um summary::-webkit-details-marker{display:none}
+.av{width:32px;height:32px;border-radius:50%;background:#f0b429;color:#1a1300;display:grid;place-items:center;font-weight:800}
+.em{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#8b93a1}
+.dd{position:absolute;right:0;top:44px;min-width:210px;background:#14171d;border:1px solid #242933;border-radius:10px;padding:8px;box-shadow:0 16px 40px rgba(0,0,0,.45);z-index:60}
+.dd .who{padding:6px 10px 10px;border-bottom:1px solid #242933;margin-bottom:6px;font-size:13px;word-break:break-all}.dd .who small{color:#8b93a1}
+.dd a{display:block;padding:8px 10px;border-radius:6px;color:#e8eaed;text-decoration:none;font-size:14px}.dd a:hover{background:rgba(255,255,255,.06)}
+.gs{border-color:rgba(240,180,41,.35)!important;background:linear-gradient(135deg,rgba(240,180,41,.07),transparent)}
+.gsh{display:flex;justify-content:space-between;align-items:center}.gsh button{background:none;border:0;color:#8b93a1;cursor:pointer;font-size:16px}
+.gs ol{margin:8px 0 6px;padding-left:20px}.gs li{margin:5px 0}
+.legend{font-size:12px;margin:2px 0 10px;line-height:1.6}
+@media(max-width:720px){
+  .an{position:fixed;bottom:0;left:0;right:0;z-index:50;margin:0;justify-content:space-around;background:#14171d;border-top:1px solid #242933;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .an a{flex-direction:column;gap:2px;font-size:11px;padding:6px 8px}.an i{font-size:19px}
+  body{padding-bottom:76px}.em{display:none}
+}

@@ -1,5 +1,5 @@
 <?php
-// Mail helper. Priority: mail_debug (log only) > SMTP (if smtp_host is set) > PHP mail().
+if (defined('MAILER_LOADED')) return; define('MAILER_LOADED', true);// Mail helper. Priority: mail_debug (log only) > SMTP (if smtp_host is set) > PHP mail().
 function send_mail(string $to, string $subject, string $body): bool {
   $to = str_replace(["\r", "\n"], '', $to);
   if (cfg('mail_debug')) { error_log("[mail] to=$to | $subject\n$body"); return true; }

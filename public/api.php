@@ -9,6 +9,7 @@ api_require([
   'calendar'=>'calendar', 'status'=>'health', 'health'=>'health',
   'journal'=>'journal', 'journal_add'=>'journal', 'journal_del'=>'journal',
   'me'=>'alerts', 'settings'=>'alerts', 'test_alert'=>'alerts',
+  'tg_connect'=>'alerts', 'tg_status'=>'alerts', 'tg_disconnect'=>'alerts',
 ][$a] ?? 'admin_only');
 $a = $_GET['action'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') check_csrf();
@@ -44,13 +45,23 @@ switch ($a) {
     out(['ok'=>true]);
   case 'journal_del':
     db()->prepare('DELETE FROM journal WHERE id=? AND user_id=?')->execute([(int)$in['id'],$u['id']]); out(['ok'=>true]);
-  case 'settings':
-    db()->prepare('UPDATE users SET telegram_chat_id=?,alert_telegram=?,alert_email=? WHERE id=?')
-       ->execute([preg_replace('/[^0-9\-]/','',(string)($in['chat'] ?? '')) ?: null, !empty($in['tg'])?1:0, !empty($in['mail'])?1:0, $u['id']]);
+    case 'settings':
+    db()->prepare('UPDATE users SET alert_telegram=?,alert_email=? WHERE id=?')
+       ->execute([(!empty($in['tg']) && $u['telegram_chat_id']) ? 1 : 0, !empty($in['mail']) ? 1 : 0, $u['id']]);
+    out(['ok'=>true]);
+  case 'tg_connect':
+    if (!cfg('tg_token') || !cfg('tg_bot')) out(['error'=>'Telegram bot is not configured yet'], 503);
+    $tok = bin2hex(random_bytes(16));
+    db()->prepare('DELETE FROM telegram_links WHERE user_id=?')->execute([$u['id']]);
+    db()->prepare('INSERT INTO telegram_links(user_id,token_hash,expires_at) VALUES(?,?,DATE_ADD(NOW(),INTERVAL 15 MINUTE))')->execute([$u['id'], hash('sha256', $tok)]);
+    out(['url'=>'https://t.me/'.rawurlencode((string)cfg('tg_bot')).'?start='.$tok]);
+  case 'tg_status': out(['linked'=>!empty($u['telegram_chat_id'])]);
+  case 'tg_disconnect':
+    db()->prepare('UPDATE users SET telegram_chat_id=NULL, alert_telegram=0 WHERE id=?')->execute([$u['id']]);
     out(['ok'=>true]);
   case 'test_alert':
     $u = user(); $err = tg_send($u['telegram_chat_id'], 'Test alert from your XAU/USD terminal ✅');
     out($err ? ['error'=>$err] : ['ok'=>true]);
-  case 'me': out(['email'=>$u['email'],'chat'=>$u['telegram_chat_id'],'tg'=>(bool)$u['alert_telegram'],'mail'=>(bool)$u['alert_email']]);
+  case 'me': out(['email'=>$u['email'],'tg_linked'=>!empty($u['telegram_chat_id']),'tg'=>(bool)$u['alert_telegram'],'mail'=>(bool)$u['alert_email']]);
   default: out(['error'=>'unknown action'], 404);
 }
