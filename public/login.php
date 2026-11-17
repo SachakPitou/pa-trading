@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="f"><label for="pw">Password</label>
         <input id="pw" type="password" name="password" placeholder="<?= $reg ? 'At least 8 characters' : 'Your password' ?>" autocomplete="<?= $reg ? 'new-password' : 'current-password' ?>" <?= $reg ? 'minlength="8"' : '' ?> required>
         <button type="button" class="eye" onclick="var p=document.getElementById('pw');var s=p.type==='password';p.type=s?'text':'password';this.textContent=s?'Hide':'Show'">Show</button></div>
-      <?php if ($reg): ?><p class="hint">We'll email you a link to confirm your address.</p><?php endif; ?>
+      <?php if ($reg): ?><p class="hint">We'll email you a link to confirm your address.</p><?php else: ?><p class="hint" style="text-align:right"><a href="forgot.php">Forgot password?</a></p><?php endif; ?>
       <button class="btn"><?= $reg ? 'Create account' : 'Sign in' ?></button>
     </form>
     <?php if ($resendFor): ?>
