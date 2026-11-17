@@ -1,4 +1,4 @@
-<?php require __DIR__.'/../lib/bootstrap.php'; require_login(); $u = user();
+<?php require __DIR__.'/../lib/bootstrap.php'; require_feature('calendar'); $u = user();
 $off = (int)(strat()['tz_offset'] ?? 7); $today = gmdate('Y-m-d', time() + $off * 3600); ?>
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Signal Calendar · XAU/USD Scalp Terminal</title>

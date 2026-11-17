@@ -1,7 +1,15 @@
 <?php
 require __DIR__.'/../lib/bootstrap.php';
 $GLOBALS['web_mode']=true;
-$u = user(); if (!$u) out(['error'=>'auth'], 401);
+// $u = user(); if (!$u) out(['error'=>'auth'], 401);
+$u = user(); $a = $_GET['action'] ?? '';
+// Which feature each action belongs to. Unlisted actions fall back to admin-only.
+api_require([
+  'price'=>'price', 'news'=>'news', 'signals'=>'signals', 'analysis'=>'ai', 'performance'=>'performance',
+  'calendar'=>'calendar', 'status'=>'health', 'health'=>'health',
+  'journal'=>'journal', 'journal_add'=>'journal', 'journal_del'=>'journal',
+  'me'=>'alerts', 'settings'=>'alerts', 'test_alert'=>'alerts',
+][$a] ?? 'admin_only');
 $a = $_GET['action'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') check_csrf();
 $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];

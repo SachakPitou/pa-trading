@@ -10,7 +10,7 @@ register_shutdown_function(function () {
   }
 });
 require __DIR__.'/../lib/bootstrap.php'; require __DIR__.'/../lib/newsai.php';
-$u = user(); if (!$u) out(['error'=>'auth'], 401);
+api_require('ai'); $u = user();
 $a = $_GET['action'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') check_csrf();
 function news_state(): array {

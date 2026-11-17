@@ -1,6 +1,6 @@
 <?php
 require __DIR__.'/../lib/bootstrap.php'; require __DIR__.'/../lib/journal.php';
-$u = user(); if (!$u) out(['error'=>'auth'], 401);
+api_require('journal'); $u = user();
 $a = $_GET['action'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') check_csrf();
 try {

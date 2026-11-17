@@ -1,7 +1,7 @@
 <?php
 ini_set('display_errors', '0'); header('Content-Type: application/json');
 require __DIR__.'/../lib/bootstrap.php'; require __DIR__.'/../lib/risk.php';
-$u = user(); if (!$u) out(['error'=>'auth'], 401);
+api_require('risk'); $u = user();
 $uid = (int)$u['id']; $a = $_GET['action'] ?? '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') check_csrf();
 try {

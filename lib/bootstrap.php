@@ -8,7 +8,7 @@ if (is_file(__DIR__ . '/../strategy.php')) {
 }
 session_set_cookie_params(['httponly'=>true,'samesite'=>'Lax','secure'=>!empty($_SERVER['HTTPS'])]);
 if (PHP_SAPI !== 'cli') session_start();
-require __DIR__.'/market.php'; require __DIR__.'/indicators.php'; require __DIR__.'/news.php'; require __DIR__.'/signals.php'; require __DIR__.'/notify.php'; require __DIR__.'/stats.php'; require __DIR__.'/ai.php'; require __DIR__.'/health.php'; require_once __DIR__.'/nav.php';
+require __DIR__.'/market.php'; require __DIR__.'/indicators.php'; require __DIR__.'/news.php'; require __DIR__.'/signals.php'; require __DIR__.'/notify.php'; require __DIR__.'/stats.php'; require __DIR__.'/ai.php'; require __DIR__.'/health.php'; require_once __DIR__.'/nav.php'; require_once __DIR__.'/access.php';
 
 function cfg(string $k){ return $GLOBALS['cfg'][$k] ?? null; }
 function db(): PDO {
@@ -21,7 +21,12 @@ function user(): ?array {
   if($u===false){ $u=null; if(!empty($_SESSION['uid'])){ $s=db()->prepare('SELECT * FROM users WHERE id=?'); $s->execute([$_SESSION['uid']]); $u=$s->fetch()?:null; } }
   return $u;
 }
+function is_admin(): bool { $u=user(); return $u && ($u['role'] ?? 'user') === 'admin'; }
 function require_login(): void { if(!user()){ header('Location: login.php'); exit; } }
+function require_admin(): void {
+  if(!user()){ header('Location: login.php'); exit; }
+  if(!is_admin()){ http_response_code(403); exit('Forbidden: admin only'); }
+}
 function csrf(): string { return $_SESSION['csrf'] ??= bin2hex(random_bytes(16)); }
 function check_csrf(): void {
   $t=$_SERVER['HTTP_X_CSRF'] ?? $_POST['csrf'] ?? '';
