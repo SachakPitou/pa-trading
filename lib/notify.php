@@ -9,7 +9,7 @@ function tg_send(?string $chat,string $text): ?string {
 }
 function alert_user(array $u,string $subject,string $text): void {
   if($u['alert_telegram']) tg_send($u['telegram_chat_id'],$text);
-  if($u['alert_email']) @mail($u['email'],$subject,$text,'From: '.cfg('mail_from'));
+  if($u['alert_email']) { require_once __DIR__.'/mailer.php'; send_mail($u['email'],$subject,$text); }
 }
 function alert_all(string $subject,string $text): void {
   foreach(db()->query('SELECT * FROM users WHERE alert_telegram=1 OR alert_email=1')->fetchAll() as $u) alert_user($u,$subject,$text);
