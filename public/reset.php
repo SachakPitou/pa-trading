@@ -10,7 +10,7 @@ if ($uid && $_SERVER['REQUEST_METHOD'] === 'POST') {
   if (strlen($p1) < 8) $err = 'Password must be at least 8 characters.';
   elseif ($p1 !== $p2) $err = 'Passwords do not match.';
   else {
-    db()->prepare('UPDATE users SET pass_hash=?, email_verified_at=COALESCE(email_verified_at,NOW()) WHERE id=?')
+    db()->prepare('UPDATE users SET pass_hash=?, email_verified_at=COALESCE(email_verified_at,NOW()), sess_ver=sess_ver+1 WHERE id=?')
        ->execute([password_hash($p1, PASSWORD_DEFAULT), $uid]);
     db()->prepare('DELETE FROM password_resets WHERE user_id=?')->execute([$uid]);
     $done = true;

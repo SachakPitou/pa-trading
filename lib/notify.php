@@ -12,5 +12,5 @@ function alert_user(array $u,string $subject,string $text): void {
   if($u['alert_email']) { require_once __DIR__.'/mailer.php'; send_mail($u['email'],$subject,$text); }
 }
 function alert_all(string $subject,string $text): void {
-  foreach(db()->query('SELECT * FROM users WHERE alert_telegram=1 OR alert_email=1')->fetchAll() as $u) alert_user($u,$subject,$text);
+  foreach(db()->query('SELECT * FROM users WHERE (alert_telegram=1 OR alert_email=1) AND disabled_at IS NULL')->fetchAll() as $u) alert_user($u,$subject,$text);
 }

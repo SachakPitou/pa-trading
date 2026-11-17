@@ -23,3 +23,5 @@ header{position:sticky;top:0;z-index:40;gap:12px 20px;align-items:center}
   .an a{flex-direction:column;gap:2px;font-size:11px;padding:6px 8px}.an i{font-size:19px}
   body{padding-bottom:76px}.em{display:none}
 }
+.dd .lo{width:100%;text-align:left;background:none;border:0;padding:8px 10px;color:#e8eaed;font:inherit;font-size:14px;border-radius:6px;cursor:pointer}
+.dd .lo:hover{background:rgba(255,255,255,.06)}

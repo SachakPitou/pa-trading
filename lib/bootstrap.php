@@ -6,8 +6,16 @@ $GLOBALS['cfg'] = require __DIR__ . '/../config.php';
 if (is_file(__DIR__ . '/../strategy.php')) {
   $GLOBALS['cfg']['strategy'] = array_merge((array)($GLOBALS['cfg']['strategy'] ?? []), (array)require __DIR__ . '/../strategy.php');
 }
-session_set_cookie_params(['httponly'=>true,'samesite'=>'Lax','secure'=>!empty($_SERVER['HTTPS'])]);
-if (PHP_SAPI !== 'cli') session_start();
+if (PHP_SAPI !== 'cli') {
+  ini_set('session.use_strict_mode', '1'); ini_set('session.use_only_cookies', '1');
+  session_set_cookie_params(['httponly'=>true,'samesite'=>'Lax','secure'=>!empty($_SERVER['HTTPS'])]);
+  session_start();
+  if (!empty($_SESSION['uid'])) {                       // idle 8h or total 7 days => signed out
+    $now = time(); $_SESSION['born'] ??= $now;
+    if ($now - ($_SESSION['last'] ?? $now) > 8*3600 || $now - $_SESSION['born'] > 7*86400) { $_SESSION = []; session_regenerate_id(true); }
+    else { $_SESSION['last'] = $now; header('Cache-Control: private, no-store'); }
+  }
+}
 require __DIR__.'/market.php'; require __DIR__.'/indicators.php'; require __DIR__.'/news.php'; require __DIR__.'/signals.php'; require __DIR__.'/notify.php'; require __DIR__.'/stats.php'; require __DIR__.'/ai.php'; require __DIR__.'/health.php'; require_once __DIR__.'/nav.php'; require_once __DIR__.'/access.php';
 
 function cfg(string $k){ return $GLOBALS['cfg'][$k] ?? null; }
@@ -18,7 +26,8 @@ function db(): PDO {
 }
 function user(): ?array {
   static $u=false;
-  if($u===false){ $u=null; if(!empty($_SESSION['uid'])){ $s=db()->prepare('SELECT * FROM users WHERE id=?'); $s->execute([$_SESSION['uid']]); $u=$s->fetch()?:null; } }
+  if($u===false){ $u=null; if(!empty($_SESSION['uid'])){ $s=db()->prepare('SELECT * FROM users WHERE id=?'); $s->execute([$_SESSION['uid']]); $u=$s->fetch()?:null;
+    if ($u && ((int)($_SESSION['sv'] ?? 0) !== (int)($u['sess_ver'] ?? 0) || !empty($u['disabled_at']))) { $u=null; $_SESSION=[]; } } }   // password changed elsewhere
   return $u;
 }
 function is_admin(): bool { $u=user(); return $u && ($u['role'] ?? 'user') === 'admin'; }

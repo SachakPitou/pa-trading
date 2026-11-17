@@ -27,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   } else {
     $s = db()->prepare('SELECT * FROM users WHERE email=?'); $s->execute([$email]); $u = $s->fetch();
     if ($u && password_verify($pw, $u['pass_hash'])) {
-      if (!$u['email_verified_at']) { $err = 'Please confirm your email first.'; $resendFor = $email; }
-      else { session_regenerate_id(true); $_SESSION['uid'] = (int)$u['id']; header('Location: '.(gate_redirect($u) ?? 'dashboard.php')); exit; }
+      if (!empty($u['disabled_at'])) { $err = 'This account is disabled. Please contact support.'; } elseif (!$u['email_verified_at']) { $err = 'Please confirm your email first.'; $resendFor = $email; }
+      else { session_regenerate_id(true); $_SESSION['uid'] = (int)$u['id']; $_SESSION['sv'] = (int)($u['sess_ver'] ?? 0); $_SESSION['born'] = time(); header('Location: '.(gate_redirect($u) ?? 'dashboard.php')); exit; }
     } else { $hit(); $err = 'Wrong email or password.'; }
   }
 }
